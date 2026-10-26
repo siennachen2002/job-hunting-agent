@@ -131,6 +131,21 @@ def upsert_job(con: sqlite3.Connection, job: dict) -> tuple[int, bool]:
     return cur.lastrowid, True
 
 
+def role_key(company: str | None, title: str | None) -> str:
+    """One role, however many cities it is posted in: company + title, normalised."""
+    import re
+    return re.sub(r"\W+", " ", f"{company or ''}|{title or ''}".lower()).strip()
+
+
+def applied_role(con, job: dict) -> int | None:
+    """The application already made for this role in any city (not withdrawn), or None."""
+    for r in con.execute("SELECT a.id, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.status != 'withdrawn' "
+                         "AND lower(j.company)=lower(?)", (job.get("company") or "",)).fetchall():
+        if role_key(r["company"], r["title"]) == role_key(job.get("company"), job.get("title")):
+            return r["id"]
+    return None
+
+
 def jobs_by_status(con, status: str, limit: int = 500) -> list[sqlite3.Row]:
     return con.execute("SELECT * FROM jobs WHERE status=? ORDER BY discovered_at DESC LIMIT ?", (status, limit)).fetchall()
 

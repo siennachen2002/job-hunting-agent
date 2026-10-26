@@ -653,15 +653,33 @@ def board(tab: str = "review"):
             rows_ += con.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY COALESCE(jev_p*100, score) DESC LIMIT 200").fetchall()
             rows_ += con.execute("SELECT * FROM jobs WHERE status='new' AND (jev_p IS NOT NULL OR kw_score >= 0.6) "
                                  "ORDER BY COALESCE(jev_p, -1) DESC, kw_score DESC LIMIT 60").fetchall()
-            seen = set()
+            seen = set(); roles = {}
+            applied = {db.role_key(r["company"], r["title"]) for r in con.execute(
+                "SELECT j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.status != 'withdrawn'").fetchall()}
+            near = re.compile(r"new york|nyc|\bny\b|new jersey|\bnj\b|remote|united states|\bus\b|usa", re.I)
             for j in rows_:
                 if j is None or j["id"] in seen:
                     continue
                 seen.add(j["id"]); j = dict(j); m, src = _match(j)
                 if m is not None and m < MIN_MATCH and _prep_state(j["id"]) != "running":
                     continue  # below 50: not worth applying, never listed
-                out.append({**_facts(j), "apply_url": j.get("apply_url"), "job_id": j["id"], "company": j["company"], "title": _title(j["title"]), "url": j["url"], "match": m, "match_src": src, "location": j.get("location") or "",
-                            "why": j.get("score_reason") or "", "preparing": _prep_state(j["id"])})
+                key = db.role_key(j["company"], j["title"])
+                if key in applied and _prep_state(j["id"]) != "running":
+                    continue  # this role already has an application, in this city or another
+                card = {**_facts(j), "apply_url": j.get("apply_url"), "job_id": j["id"], "company": j["company"], "title": _title(j["title"]), "url": j["url"], "match": m, "match_src": src, "location": j.get("location") or "",
+                        "why": j.get("score_reason") or "", "preparing": _prep_state(j["id"]), "cities": [j.get("location") or ""]}
+                prev = roles.get(key)
+                if prev is None:
+                    roles[key] = card; out.append(card); continue
+                # the same role in another city: one card listing every city; it stands for the best match, nearest you on a tie
+                prev["cities"].append(card["location"])
+                better = (card["match"] or -1, bool(near.search(card["location"]))) > (prev["match"] or -1, bool(near.search(prev["location"])))
+                if better or card["preparing"] == "running":
+                    cities = prev["cities"]; prev.clear(); prev.update(card); prev["cities"] = cities
+            for c in out:
+                others = [x for x in dict.fromkeys(c["cities"]) if x and x != c["location"]]
+                if others:
+                    c["location"] = c["location"] + f" · also {', '.join(others[:3])}" + (f" +{len(others) - 3}" if len(others) > 3 else "")
             out.sort(key=lambda c: (c["preparing"] != "running", -(c["match"] if c["match"] is not None else -1)))
             return out
         from agent.replies import init as _ri

@@ -422,6 +422,10 @@ def compose_job(con, job_id: int) -> int:
     """Not started → Waiting for review: résumé from storybook lines (no model), then fill the form or draft the email."""
     from .setup_answers import require
     require()
+    dup = db.applied_role(con, dict(con.execute("SELECT company, title FROM jobs WHERE id=?", (job_id,)).fetchone()))
+    if dup:   # the same role in another city already has an application
+        con.execute("UPDATE jobs SET status='skipped', score_reason=? WHERE id=?", (f"same role as application #{dup}", job_id)); con.commit()
+        raise SystemExit(f"same role as application #{dup}: not preparing it twice")
     from .assemble import assemble
     from .resume.render import render_one_page
     from .audit import log
