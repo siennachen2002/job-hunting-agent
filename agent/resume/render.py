@@ -56,6 +56,19 @@ def _trim(content: dict) -> bool:
     return False
 
 
+US_PLACES = r"new york|nyc|brooklyn|jersey city|san francisco|seattle|boston|chicago|los angeles|austin|remote|\b(ny|nj|ca|ma|wa|tx|il)\b"
+CN_PLACES = r"shenzhen|shanghai|beijing|chengdu|hangzhou|guangzhou|hong kong"
+
+
+def with_country(loc: str) -> str:
+    """'Shenzhen' → 'Shenzhen, China'; 'Jersey City, NJ · open to relocation' → 'Jersey City, NJ, USA · open to relocation'."""
+    if not loc or re.search(r"\b(usa|united states|china|uk|canada)\b", loc, re.I):
+        return loc
+    head, sep, tail = loc.partition(" · ")
+    country = "USA" if re.search(US_PLACES, head, re.I) else "China" if re.search(CN_PLACES, head, re.I) else ""
+    return f"{head}, {country}{sep}{tail}" if country else loc
+
+
 def safe_name(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", s).strip("_")[:60]
 
@@ -72,6 +85,11 @@ def render_one_page(content: dict, basename: str, role_family: str | None = None
     content["headline"] = headline(role_family, posting_title)
     from .. import config as _config
     content["awards"] = list(_config.profile().get("awards") or [])   # on every résumé, never trimmed
+    content["education"] = [dict(e) for e in (_config.profile().get("education") or content.get("education") or [])]
+    content["location"] = with_country(content.get("location") or "")
+    for e in content.get("experience", []) + content["education"]:   # every place names its country: "Shenzhen, China"
+        if e.get("location"):
+            e["location"] = with_country(e["location"])
     content["projects"] = [p for p in content.get("projects", []) if not any(p.get("name", "") in a for a in content["awards"])]
     out = RESUME_OUT / f"{safe_name(basename)}.pdf"
     with sync_playwright() as p:

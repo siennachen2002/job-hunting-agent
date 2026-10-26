@@ -2,7 +2,7 @@
 
 1. Every link in a résumé, form answer or email is shown as a word (Website, LinkedIn, GitHub, Instagram, a project name)
    with the URL embedded. Raw URLs are never printed.
-2. Header links are built here from preferences.yaml, not by the model: the website as its bare address, LinkedIn, GitHub always;
+2. Header links are built here from preferences.yaml, not by the model: Website, LinkedIn, GitHub always;
    Instagram for creative roles (CREATIVE_FAMILIES or creative sectors).
 """
 from __future__ import annotations
@@ -22,9 +22,8 @@ def header_links(role_family: str | None = None, sector: str | None = None) -> l
     for k in ORDER:
         if k == "instagram" and not creative:
             continue
-        if links.get(k):   # the website shows as its address (siennachen.com): readable on paper and by applicant-tracking systems
-            label = re.sub(r"^https?://(www\.)?", "", links[k]).rstrip("/") if k == "website" else LABELS[k]
-            out.append({"label": label, "url": links[k]})
+        if links.get(k):
+            out.append({"label": LABELS[k], "url": links[k]})
     return out
 
 

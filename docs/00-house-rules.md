@@ -46,6 +46,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 ## Shape
 
 - Résumé: one page, reverse-chronological, 2-4 bullets per role, each bullet one achievement in at most two lines: action, object, method or result.
+  Every place names its country (New York, USA · Shenzhen, China), in the header, each role and each school. Header links
+  are words with the link inside (Website · LinkedIn · GitHub). Both are set in code (agent/resume/render.py, agent/links.py).
   Choose and order material by the role lens in 06-roles.md; the same project reads differently for each role.
   The two most recent roles must, on their own, show every core requirement in the posting; older roles and projects
   reinforce, they don't fill gaps. Leave out recent work that doesn't serve this posting, even a current job.

@@ -89,10 +89,11 @@ NODES = [
                 ("JSON", "JobScore", "rank"),
                 ("Markdown", "storybook", "storybook")],
          gives=[("JSON", "ResumeContent", "check"),
-                ("PDF", "out/resumes/<name>.pdf (one page; website shown as its address)", "review"),
+                ("PDF", "out/resumes/<name>.pdf (one page)", "review"),
                 ("PNG", "out/resumes/<name>.png (preview)", "review")],
          note="Picks the true lines for the role, then words them in the posting's nouns (never its prose) and orders them by its "
-              "requirements; the two newest roles cover every core requirement. Facts never change: a new number or outcome keeps the original line. Two lines per bullet at most."),
+              "requirements; the two newest roles cover every core requirement. Facts never change: a new number or outcome keeps the original line. Two lines per bullet at most. "
+              "The template: header links are words (Website · LinkedIn · GitHub), and every place, roles and schools alike, names its country."),
     dict(id="check", step="03", name="Writing check", lane="agent", runs="model", prompt="REPAIR", schema="Repaired",
          code="agent/voicecheck.py (rules) · agent/llm.py · repair_text",
          reads=[("Text", "every bullet, answer and email", ["tailor", "answers", "email"]),

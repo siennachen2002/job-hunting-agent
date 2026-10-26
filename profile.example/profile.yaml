@@ -4,7 +4,7 @@ legal_name: {first: Alejandro, last: Rivera}
 preferred_name: Alex
 email: alex@example.com
 phone: "(555) 010-0000"
-location: "Brooklyn, NY · open to relocation"
+location: "Brooklyn, NY, USA · open to relocation"   # every place names its country
 summary_for_ranker: "Product designer and front-end developer; 4 years in climate and fintech."
 links:
   website: https://alexrivera.design
@@ -12,11 +12,11 @@ links:
   github: https://github.com/alexrivera
   instagram: https://www.instagram.com/alexrivera
 case_study_pattern: "alexrivera\\.design/work/([a-z0-9-]+)"
-education:
-  - {school: "Example University", degree: "MS Interaction Design", dates: "09/2020 - 06/2022", note: ""}
+education:   # each school with its city and country
+  - {school: "Example University", degree: "MS Interaction Design", location: "Pittsburgh, USA", dates: "09/2020 - 06/2022", note: ""}
 entries:
-  Fieldwork: {role: "Product Designer", location: "Brooklyn", dates: "07/2022 - present", start: "2022-07", link: "", pinned: true}
-  Studio North: {role: "Design Intern", location: "Remote", dates: "06/2021 - 08/2021", start: "2021-06", link: ""}
+  Fieldwork: {role: "Product Designer", location: "Brooklyn, USA", dates: "07/2022 - present", start: "2022-07", link: "", pinned: true}
+  Studio North: {role: "Design Intern", location: "Remote, USA", dates: "06/2021 - 08/2021", start: "2021-06", link: ""}
 entry_titles: {}
 project_links:
   Grid Map: https://alexrivera.design/work/grid-map
