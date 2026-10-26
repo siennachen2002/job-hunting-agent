@@ -55,6 +55,9 @@ WHY_US = ("For a why-us question or cover letter (why this company, why this rol
           "touch at most. Never open with the candidate or 'I am writing'. Swap test: delete any sentence that would still be true "
           "with another company's name in it. Don't summarize the résumé, don't list what the candidate wants from the job, "
           "use a number only if the master documents give it. Write it the way they'd say it across a table. "
+          "Let real enthusiasm show: say plainly what genuinely excites the candidate about this work, in their own voice, with "
+          "one vivid concrete detail. Balance it with professional judgment: one sharp observation about the company's problem or "
+          "product in the field's own vocabulary, the way a practitioner would say it. Show passion, never claim it (no 'passionate'). "
           "A little American warmth and energy is welcome; hype words are not.")
 
 EMAIL = ("Write a {kind} email from {first_name} to this company. Hinge it on one concrete thing in the context; "

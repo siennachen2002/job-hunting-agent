@@ -21,7 +21,7 @@ JS = r"""
   };
   document.querySelectorAll('input, textarea, select, [role="combobox"]').forEach(el => {
     if (el.type === 'hidden' || el.type === 'submit') return;
-    let label = labelFor(el).replace(/\s+/g, ' ').slice(0, 300);
+    let label = labelFor(el).replace(/\s+/g, ' ').slice(0, 1200);
     const key = label + '|' + (el.name || el.id);
     if (seen.has(key)) return; seen.add(key);
     const wrap = el.closest('fieldset') || el.parentElement;

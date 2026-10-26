@@ -48,7 +48,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   published, and {name}'s honest reaction to it; never a paraphrased slogan), then personality shown through one short story
   (what {name} loves doing, how {name} works), experience last. Swap test: if a sentence still works with another company's
   name in it, cut it. Say what the résumé can't; never summarize it. One story, not a list. Write it the way {name} would say
-  it across a table. Warm, a little American energy.
+  it across a table. Warm and visibly excited about the work (shown, never claimed), with one practitioner's observation
+  about their product or problem that proves professional judgment.
 - Emails: under 120 words (more only if the employer asks for write-ups), one specific reason, one piece of evidence,
   one clear ask. Links are words, written as [words](url).
 

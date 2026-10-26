@@ -54,9 +54,16 @@ def _gender_words(g: str) -> tuple[str, ...]:
     return {"woman": ("female", "woman", "women"), "man": ("male", "man", "men"), "non-binary": ("non-binary", "nonbinary", "non binary")}.get(g.lower(), (g.lower(),))
 
 
+LEGAL = re.compile(r"arbitrat|certify|attest|export control|export[- ]control|bound by|background check|criminal|perjury|true and (complete|correct)", re.I)
+
+
 def simple_answer(label: str) -> str | None:
     """Plain questions answered from the standing answers, then preferences.yaml simple_answers."""
     s, l = _sa(), (label or "")
+    if re.search(r"password", l, re.I):
+        return None   # "Website Password" is not the website
+    if LEGAL.search(l):
+        return None   # arbitration, certifications, export control, background checks: always the person's own decision
     rules = [
         (r"undergrad(uate)? gpa|bachelor.*gpa", s.get("undergrad_gpa")),
         (r"(graduate|master'?s?|ms) gpa", s.get("grad_gpa")),
@@ -72,7 +79,7 @@ def simple_answer(label: str) -> str | None:
         (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?employment|visa sponsorship",
          None if not (s.get("sponsorship_now") or s.get("sponsorship_future")) else
          ("Yes" if "Yes" in (s.get("sponsorship_now"), s.get("sponsorship_future")) else "No")),
-        (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|(review and )?acknowledge .*(agreement|policy|notice|terms)",
+        (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|\bi consent to\b|(review and )?acknowledge .*(agreement|policy|notice|terms)",
          "Yes" if s.get("consent", "").startswith("Tick") else None),
     ]
     for pat, val in rules:
@@ -152,7 +159,8 @@ def standing_answer(label: str, options: list[str] | None = None, as_option: boo
             return _pick(options, _DECL_OPT) or "Decline to self-identify"
         w = _gender_words(s["gender"])
         return _pick(options, *[f"^{x}$" for x in w], *w) or {"woman": "Female", "man": "Male"}.get(s["gender"].lower(), s["gender"])
-    if s.get("hispanic_latino") and re.search(r"hispanic|latin[oax]", l):
+    if s.get("hispanic_latino") and (re.search(r"hispanic|latin[oax]", l) or
+                                     (re.search(r"ethnicity", l) and any(re.search(r"hispanic|latin", o, re.I) for o in options or []))):
         if _declined(s["hispanic_latino"]):
             return _pick(options, _DECL_OPT) or "Decline to self-identify"
         return (_pick(options, r"^no\b", r"not hispanic") if _is(s["hispanic_latino"], "no") else _pick(options, r"^yes\b")) or s["hispanic_latino"]

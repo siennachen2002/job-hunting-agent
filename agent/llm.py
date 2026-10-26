@@ -178,6 +178,14 @@ def answer_form(job: dict, questions: list[dict]) -> FormAnswers:
     have = {a.question for a in fa.answers}
     from .apply.standing import SKIP_NEED
     fa.needs_human = list(dict.fromkeys(re.sub(r"\s*select\.{3}\s*$", "", q, flags=re.I) for q in fa.needs_human if not SKIP_NEED.search(q)))
+    labels = [q.get("label") or "" for q in questions]
+    def exact(need: str) -> str:   # the form's own full question, not the model's shortened retelling of it
+        if need in labels:
+            return need
+        w = set(re.findall(r"[a-z]{3,}", need.lower()))
+        best = max(labels, key=lambda l: len(w & set(re.findall(r"[a-z]{3,}", l.lower()))), default="")
+        return best if best and len(w & set(re.findall(r"[a-z]{3,}", best.lower()))) >= 2 else need
+    fa.needs_human = list(dict.fromkeys(exact(q) for q in fa.needs_human))
     req = {q.get("label"): q.get("required") for q in questions}
     for q in list(fa.needs_human):
         base = re.sub(r"\s*\([a-z ]+\)$", "", q)   # "Name (text)" → "Name"
@@ -190,6 +198,12 @@ def answer_form(job: dict, questions: list[dict]) -> FormAnswers:
             fa.needs_human.remove(q)
             if q not in have:
                 fa.answers.append(FormAnswer(question=q, answer=v, provenance="master", note="standing answer"))
+    from .apply.standing import LEGAL
+    for a in list(fa.answers):   # legal declarations stay with the person, however sure the model is
+        if LEGAL.search(a.question) and a.note != "standing answer":
+            fa.answers.remove(a)
+            if a.question not in fa.needs_human:
+                fa.needs_human.append(a.question)
     from .answer_bank import lookup
     for q in list(fa.needs_human):   # asked before and answered by the person: never asked again
         v = lookup(q, job.get("company") or "")

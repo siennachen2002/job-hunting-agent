@@ -40,8 +40,9 @@ def best_option(val: str, options: list[str]) -> str | None:
     for o in opts:
         if _norm(o) == v:
             return o
-    for o in opts:
-        if v and (v in _norm(o) or _norm(o) in v) and len(_norm(o)) > 2:
+    neg = lambda t: bool(re.search(r"\b(not|no|don ?t|do not|decline)\b", t))
+    for o in opts:   # contained text, but never flip a "not" ("I am not a veteran" is not "I am a veteran and …")
+        if v and (v in _norm(o) or _norm(o) in v) and len(_norm(o)) > 2 and neg(v) == neg(_norm(o)):
             return o
     m = re.search(r"\b(\d{1,2})[/-](20\d\d)\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(20\d\d)", val, re.I)
     if m:
@@ -62,8 +63,13 @@ def best_option(val: str, options: list[str]) -> str | None:
         hit = next((o for o in opts if re.search(r"careers? (site|page)|company (website|site)|website", o, re.I)), None)
         if hit:
             return hit
+    if "veteran" in v and neg(v):   # "not a protected veteran": the plain "not a veteran" option, never "I am a veteran and …"
+        hit = next((o for o in opts if re.search(r"\bnot a (protected )?veteran\b|^\s*no\b", o, re.I)), None)
+        if hit:
+            return hit
     words = {w for w in v.split() if len(w) > 3}
-    scored = sorted(((len(words & {w for w in _norm(o).split() if len(w) > 3}), o) for o in opts), reverse=True)
+    scored = sorted(((len(words & {w for w in _norm(o).split() if len(w) > 3}), o) for o in opts
+                     if neg(v) == bool(re.search(r"\b(not|no|don ?t|do not|decline)\b", _norm(o)))), reverse=True)
     if scored and scored[0][0] >= 2 or (scored and scored[0][0] == 1 and len(words) == 1):
         return scored[0][1]
     return None
@@ -181,10 +187,10 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                             names = read()
                             if not names:
                                 loc.click(timeout=3000); pg.wait_for_timeout(600); names = read()
-                            pick = best_option(val, names)
-                            if not pick and names:   # the form words it differently: decide again with its real options
-                                again = standing_answer(f["label"], names)
-                                pick = again if again in names else best_option(again or "", names)
+                            again = standing_answer(f["label"], names) if names else None   # the standing rules, with the form's real options
+                            pick = again if again in names else best_option(val, names)
+                            if not pick and names and again:
+                                pick = best_option(again, names)
                             for term in ([] if pick else _search_terms(val)):   # long lists load as you type
                                 loc.fill(term, timeout=3000); pg.wait_for_timeout(1800)
                                 pick = best_option(val, read())
@@ -211,7 +217,11 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                     except Exception as e:
                         log.append(f"could not select {f['label'][:40]}: {e.__class__.__name__}")
         pg.wait_for_timeout(1500)
-        pg.screenshot(path=shot_path, full_page=True)
+        try:   # the filled form itself, not the job description above it
+            form = pg.locator("form:has(input), #application-form, [class*=application-form], [class*=ApplicationForm]").first
+            form.scroll_into_view_if_needed(timeout=3000); form.screenshot(path=shot_path, timeout=10000)
+        except Exception:
+            pg.screenshot(path=shot_path, full_page=True)
         result = {"ok": True, "log": log, "screenshot": shot_path, "submitted": False}
         if submit:
             def refill_cleared():
