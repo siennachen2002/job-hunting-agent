@@ -27,7 +27,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Made the marketing video in my own editor | Produced the 25-second motion graphics video in CodeCut | Precise verb, named tool, number |
 | Built a BD list of contacts | Built a business-development target database: 226 contacts across 7 segments, each mapped to an offer | Says what it is and how big |
 | Spearheaded a seamless, innovative redesign | Redesigned the site's information architecture from interviews with the founding team | Cliché out, method in |
-| I admire Figma's commitment to collaboration and innovation | Figma's AI Insights team is making customer research readable to every Figmate; at Bayer I watched sprint knowledge vanish after every session | Swap test: the weak line fits any company; the strong one fits only this one |
+| I admire Figma's commitment to collaboration and innovation | Figma asks its designers to work in the open, with research shared across the company; at Bayer I watched sprint knowledge vanish after every session | Swap test: the weak line fits any company; the strong one fits only this one |
+| Perplexity's answers carry their sources inline, numbered and clickable | Perplexity's team ships fast and holds a high bar for accuracy; that pairing is how I worked on the Benchmark Atlas | Culture and role, not a tour of their product: they know it |
 | I am a passionate, strategic thinker with a proven track record | Reframed the client's brief from X to Y, and the team adopted it | Evidence, not adjectives |
 | Consulting posting: synthesized four insight clusters into three How Might We questions | Synthesized findings into four insight clusters and three problem statements that framed the engagement | Same facts in the reader's field's words: How Might We is design-thinking vocabulary, consulting says problem statement |
 | Helped with research | Ran 20+ stakeholder interviews across three continents | Who did what, how much |
@@ -38,6 +39,7 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Two builds, as you asked: | You asked for one or two things I've built, so here are the two closest to this role. | Full sentences; a clipped lead-in with a colon reads machine-written |
 | (AI Strategist posting) Owned user flows and interaction logic for two of three agents | Scoped and led the user flows for two of three AI agents deployed across Bayer's global divisions, from stakeholder interviews to tested prototypes | Same facts, in the posting's terms: engagement, scope, deployment |
 | Discord treats belonging as something you design for, not something that just happens | Discord engineers belonging through specific mechanics, such as presence, voice channels you can drop into and invites timed to a match | Name the concrete thing in precise words; an empty contrast says nothing. Jokes are fine; casual filler and colons or em dashes in cover letters are not |
+| presence that shows who is around; showing where a finding came from | presence of nearby friends; the source of each finding | Noun phrases, not wh-clauses (who is, where it sits, what is) |
 | Selected work | Selected Projects | The section is projects, so name it with the field's word |
 | I am excited to apply… / At Acme I designed… so I want to join Northwind | Northwind's mission is to make the grid run on clean power. I love that it's a mission about plumbing, not slogans… | Why-us answers open with their mission, then why it matters to {name} as a person; experience last, lightly |
 
@@ -51,12 +53,12 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   requirements, and state a required domain or years of experience outright when the record supports it;
   the facts (numbers, clients, tools, titles) never change.
 - Form answers: answer the question asked, 90-150 words for open questions, no URLs in text boxes.
-- Why-us answers and cover letters are one thing: mission first, made concrete (one thing the company actually built, decided or
-  published, and {name}'s honest reaction to it; never a paraphrased slogan), then personality shown through one short story
-  (what {name} loves doing, how {name} works), experience last. Swap test: if a sentence still works with another company's
-  name in it, cut it. Say what the résumé can't; never summarize it. One story, not a list. Write it the way {name} would say
-  it across a table. Warm and visibly excited about the work (shown, never claimed), with one practitioner's observation
-  about their product or problem that proves professional judgment.
+- Why-us answers and cover letters are one thing, and they are about the company's culture and the role, never a description
+  of their product (they know it). Open with how the company works or what it values, in its own words, and why that suits
+  how {name} works; then what the role asks of the person in the seat and {name}'s fit for exactly that, in one short story.
+  Now and then, when the company has said where it is heading next, name that near-term vision and this role's part in it.
+  Swap test: if a sentence still works with another company's name in it, cut it. Say what the résumé can't; never summarize
+  it. Write it the way {name} would say it across a table, warm and visibly excited (shown, never claimed).
 - Emails: under 150 words. Why this role (one concrete reason), then capabilities backed by experience, not project mechanics;
   then the match to the role, plainly; a light touch of ambition; end with a complete sentence asking for 20 minutes ("Would you have 20 minutes in the next week or two to talk about the role?"). Requested
   write-ups get a line and a link each, detail saved for the call. Links are words, written as [words](url).

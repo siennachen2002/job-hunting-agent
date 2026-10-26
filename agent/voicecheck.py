@@ -23,6 +23,7 @@ CASUAL = [r"\bmade\b", r"\bdid\b", r"\bworked on\b", r"\bhelped( with| to)?\b", 
 SMALL_TALK = [r"\bi (really )?love (that|how|the way)\b", r"\bi'?d love to\b", r"\bi would love to\b", r"\bhonestly\b", r"\bfun fact\b",
               r"\bsuper\b", r"\bpretty much\b", r"\ba lot of\b", r"\bsort of\b", r"\blol\b", r"\bhaha\b", r"!",
 r"\bcan'?t wait\b", r"\bdream (job|company|role)\b", r"\bnerd\b", r"\bobsessed\b"]
+WH = re.compile(r"\b(?:who|where|what|how)(?:'s| is| are| was| it| they| he| she| someone| a| the)\b(?: \w+)?")
 VAGUE = re.compile(r"\bsomething (you|we|that|to|which)\b[^.]{0,60}\b(not|rather than)\b[^.]{0,40}\bsomething\b|"
                    r"\b(not|rather than) something (that )?(just )?(happens|exists|is)\b|, not (just|merely|simply) (a|an|the)?\s*\w+")
 ALLOW = [r"Strategic Design and Management", r"user journeys?", r"service ecosystem", r"ecosystem map"]
@@ -81,6 +82,10 @@ def lint(text: str, kind: str = "resume") -> list[Issue]:
         colons = len(re.findall(r":(?!//)", text))
         if colons:
             issues.append(Issue("hard", f"{colons} colon(s); write full sentences instead"))
+        for m in WH.finditer(low):   # "who is around", "where it sits": say it as a noun phrase
+            if not re.search(r"(^|[.?!]\s+|,\s+)$", low[:m.start()]):   # a question opening a sentence, or ", where …" describing a noun, is fine
+                issues.append(Issue("hard", f"clause '{m.group(0)}' used as a noun; use a noun phrase (e.g. 'nearby friends', 'its place')"))
+                break
         m = VAGUE.search(low)   # an empty contrast ("as something you design for, not something that just happens")
         if m:
             issues.append(Issue("hard", f"vague contrast '{m.group(0)[:60]}'; name the concrete thing in precise words"))
