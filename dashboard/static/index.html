@@ -307,7 +307,8 @@
   .reply .rh { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:4px; } .reply .rs { color:var(--mute); font-size:12.5px; }
   .reply p { margin:4px 0 0; color:var(--ink2); }
   .side-foot { margin-top:auto; margin-bottom:56px; padding:12px 6px 4px; border-top:1px solid var(--line2); }   /* clears the page editor's corner buttons */
-  .side-foot .refresh { width:100%; box-sizing:border-box; justify-content:center; }
+  .side-foot .refresh, .side-foot .update { width:100%; box-sizing:border-box; justify-content:center; }
+  .side-foot .update { margin-bottom:6px; } .side-foot .update.busy svg { animation:sp 1s linear infinite; }
   .side-foot .refresh.busy svg { animation:sp 1s linear infinite; }
   .side-foot .cap { font-size:12px; color:var(--mute); margin-top:7px; text-align:center; min-height:16px; }
   @media (max-width:760px) { .side-foot { margin:0 0 0 auto; border:0; padding:0; } .side-foot .cap { display:none; } }
@@ -333,7 +334,8 @@
       background:var(--surface); }   /* no backdrop-filter here: it would trap the fixed tab bar inside the top bar */
     .brand { padding:0; } .brand span { display:none; }
     .acct-wrap { flex:1; min-width:0; } .acct { width:auto; max-width:100%; padding:5px 10px 5px 6px; } .acct small { display:none; }
-    .side-foot .refresh { width:auto; padding:8px 10px; } .side-foot .refresh span { display:none; }
+    .side-foot { display:flex; gap:6px; } .side-foot .refresh, .side-foot .update { width:auto; padding:8px 10px; margin:0; }
+    .side-foot .refresh span, .side-foot .update span { display:none; }
     .tabs { position:fixed; left:0; right:0; bottom:0; z-index:30; display:grid; grid-template-columns:repeat(4, 1fr);
       padding:6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--line);
       background:color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
@@ -375,7 +377,8 @@
   <button class="nav" data-tab="setup"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Setup <span class="badge" id="c-setup"></span></button>
   </nav>
   <div class="side-foot">
-    <button class="btn refresh" id="refresh" onclick="refreshJobs()"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span>Refresh</span></button>
+    <button class="btn primary update" id="update" onclick="updateApp()" title="Get the newest version of the app and reload"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span>Update app</span></button>
+    <button class="btn refresh" id="refresh" onclick="refreshJobs()" title="New jobs from the job boards, and replies to your applications"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span>Refresh jobs &amp; replies</span></button>
     <div class="cap" id="refresh-cap"></div>
   </div>
 </aside>
@@ -434,19 +437,28 @@ async function setStage(id, stage) { await post(`/api/applications/${id}/stage`,
 function ago(s) { if (!s) return ''; const m = Math.round((Date.now() - new Date(s)) / 6e4); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; }
 async function showRefresh() {
   const r = await api('/api/refresh'), b = $('#refresh'), cap = $('#refresh-cap');
-  b.classList.toggle('busy', r.running); b.disabled = r.running; b.querySelector('span').textContent = r.running ? 'Refreshing…' : 'Refresh';
-  const bits = r.at ? [`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, r.replies ? `${r.replies} ${r.replies === 1 ? 'reply' : 'replies'}` : '', r.updated ? 'app updated' : ''].filter(Boolean).join(' · ') : '';
-  cap.textContent = r.running ? (ACCTS && ACCTS.demo ? 'Updating, checking job boards' : 'Updating, checking email and job boards') : r.failed ? 'Refresh failed: see data/refresh.log' : r.at ? `Updated ${ago(r.at)} · ${bits}` : 'Not refreshed yet';
+  b.classList.toggle('busy', r.running); b.disabled = r.running; b.querySelector('span').textContent = r.running ? 'Refreshing…' : 'Refresh jobs & replies';
+  const bits = r.at ? [`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, r.replies ? `${r.replies} ${r.replies === 1 ? 'reply' : 'replies'}` : ''].filter(Boolean).join(' · ') : '';
+  cap.textContent = r.running ? (ACCTS && ACCTS.demo ? 'Checking job boards' : 'Checking job boards and your inbox') : r.failed ? 'Refresh failed: see data/refresh.log' : r.at ? `Jobs refreshed ${ago(r.at)} · ${bits}` : 'Jobs not refreshed yet';
   return r;
 }
-// one button for everything: the app's newest version, new jobs, and replies that move each application along
+// Update app: the newest version, then the server starts again and the page reloads on it (the button used most)
+async function updateApp() {
+  const b = $('#update'); b.disabled = true; b.classList.add('busy'); b.querySelector('span').textContent = 'Updating…';
+  const r = await post('/api/update-app').catch(() => ({}));
+  if (r && r.update_error) toast(r.update_error);
+  $('#refresh-cap').textContent = r && r.updated ? `Updated (${r.updated} change${r.updated === 1 ? '' : 's'}), restarting…` : 'Restarting on the latest version…';
+  await new Promise(ok => setTimeout(ok, 1200));
+  for (let i = 0; i < 60; i++) { try { if ((await fetch('/api/config')).ok) return location.reload(); } catch (e) {} await new Promise(ok => setTimeout(ok, 500)); }
+}
+// Refresh jobs & replies: new jobs from the boards, and replies that move each application along
 async function refreshJobs() {
   await post('/api/refresh'); await showRefresh();
   clearInterval(window._rp); window._rp = setInterval(async () => {
     const r = await showRefresh(); if (r.running) return;
     clearInterval(window._rp);
     if (r.failed) return toast('Refresh failed');
-    toast([`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, `${r.replies || 0} new ${r.replies === 1 ? 'reply' : 'replies'}`, r.updated ? `app updated (${r.updated} change${r.updated === 1 ? '' : 's'})` : 'app up to date'].join(' · '));
+    toast([`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, `${r.replies || 0} new ${r.replies === 1 ? 'reply' : 'replies'}`].join(' · '));
     if (r.update_error) toast(r.update_error);
     if (r.restarting) {                      // the server is starting again on the new code: wait for it, then reload
       $('#refresh-cap').textContent = 'Restarting on the new version…';

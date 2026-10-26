@@ -55,9 +55,9 @@ REPAIR = "Rewrite the text to fix the listed problems. Same facts, same or short
 
 ANSWERS = "Answer this application form. Anything only {first_name} can answer goes in needs_human with a short reason."
 
-WHY_US = ("This is a cover letter or why-us answer: follow the brief's shape for them. Draw the company's culture, values and "
-          "stated near-term direction from the posting and the mission notes, in their own words; never describe their product. "
-          "Never open with the candidate or 'I am writing'.")
+WHY_US = ("This is a cover letter or why-us answer: follow the brief's shape for them. The first paragraph shows the candidate's "
+          "enthusiasm for this role and the match, plainly. Draw the company's culture, values and stated near-term direction "
+          "from the posting and the mission notes, in their own words; never describe their product. No 'I am writing'.")
 
 EMAIL = ("Write a {kind} email from {first_name} to this company, following the brief's email shape. Write for a reader who "
          "knows nothing about {first_name}: say what each project is and why it exists before any detail. If the employer asks "

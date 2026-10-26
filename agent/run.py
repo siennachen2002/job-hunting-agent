@@ -561,8 +561,8 @@ def main(argv=None):
                     continue
                 mid = send(item["to"], item["subject"], item["body"], item["htmlBody"], item["attachment"])
                 mark_sent(con, item["id"], mid); print(f"sent {item['id']} to {', '.join(item['to'])}")
-        elif a.cmd == "refresh":   # the dashboard's Refresh button: the app itself, the job boards, the inbox; then a small status file
-            update = self_update()
+        elif a.cmd == "refresh":   # Refresh jobs & replies: the job boards and the inbox (the app's own update is a separate button)
+            update = {}
             counts = discover(con); prefilter(con)
             new = sum(v[1] for v in counts.values())
             from . import jev

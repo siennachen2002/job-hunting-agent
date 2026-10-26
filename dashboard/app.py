@@ -167,6 +167,16 @@ class Decision(BaseModel):
 REFRESH = {}
 
 
+@app.post("/api/update-app")
+def update_app():
+    """Update app: the newest version from GitHub when there is one, then this server starts again on the code on disk,
+    so every change shows. Jobs and replies are not touched (that is Refresh jobs & replies)."""
+    from agent.run import self_update
+    r = self_update()
+    _restart_soon()
+    return {"ok": True, **r}
+
+
 @app.post("/api/refresh")
 def refresh_start():
     import subprocess, sys

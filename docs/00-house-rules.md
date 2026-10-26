@@ -31,6 +31,7 @@ is welcome, casual filler ("I love that", "I'd love to") is not.
 | (posting asks for deployment) Owned the flows for two agents, deployed across divisions | Owned the flows for two agents | Never add the posting's claim to a fact |
 | I admire Figma's commitment to innovation | Figma asks its designers to work in the open, with research shared across the company; at Bayer I watched sprint knowledge vanish after every session | Swap test: fits only this company |
 | Perplexity's answers carry their sources inline | Perplexity ships fast and holds a high bar for accuracy, the pairing I worked with on the Benchmark Atlas | Culture and role; they know their product |
+| (first paragraph) Discord's mission is to cultivate belonging… | I want this role: Player Experiences is where Discord's belonging is decided in a few small moments, and designing social presence for AI characters is the work I already do | Enthusiasm and fit up front, then the proof |
 | Two builds, as you asked: 1. [CodeCut](link). Problem: … | You asked for one or two things I've built. CodeCut is an open-source video editor where a designer and AI agents share one timeline, because… | Say what a thing is before any detail, in full sentences |
 
 ## Shape
@@ -43,9 +44,10 @@ is welcome, casual filler ("I love that", "I'd love to") is not.
   {name} brings here. No 'I', no stock phrases (seasoned, passionate, bridging, at the intersection of).
 - **Form answers.** Answer the question asked, 90-150 words for open questions, no URLs in text boxes.
 - **Cover letters and why-us answers** are one thing, about the company's culture and the role, never a tour of their
-  product. Open with how the company works or what it values, in its own words, and why that suits how {name} works; then
-  what the role asks of the person in the seat and {name}'s fit for exactly that, in one short story. Now and then, the
-  company's stated near-term vision and this role's part in it. Swap test on every sentence. Never summarize the résumé.
+  product. The first paragraph says it outright: {name}'s enthusiasm for this role and why {name} is a close match, tied to
+  how the company works or what it values, in its own words. Then one short story that proves the match, from the record;
+  now and then, the company's stated near-term vision and this role's part in it. Swap test on every sentence. Never
+  summarize the résumé.
 - **Emails.** Under 150 words (300 when the employer asks for write-ups, answering every part they ask). One concrete reason
   for this role; capabilities backed by experience, not project mechanics; the match, plainly; a light touch of ambition;
   a complete sentence asking for 20 minutes. Links are words: [words](url).
