@@ -175,6 +175,8 @@ def structured(system_blocks: list[dict], user: str, schema: Type[T], effort: st
     from . import config  # loads .env
     # tier "claude-code": your Claude Code login, never an API key (ranking when Jev isn't connected)
     s = {"provider": "claude-code", "name": ""} if tier == "claude-code" else (spec("draft") if tier == "draft" else None) or spec("model")
+    if config.is_demo() and s and s.get("provider") == "claude-code" and not s.get("name"):
+        s = {**s, "name": os.getenv("JHA_DEMO_MODEL", "claude-haiku-5-5")}   # a live demo has three minutes: the fast model
     if not s or missing(s):
         raise RuntimeError("No model is set up yet: open the dashboard's Setup page, or set JHA_MODEL in .env. " + missing(s))
     return CALL[s["provider"]](system_blocks, user, schema, effort, max_tokens, s)

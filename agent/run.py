@@ -231,7 +231,15 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
             db.update_application(con, a["id"], status="failed", error="posting closed"); con.commit(); continue
         config.SCREENS.mkdir(parents=True, exist_ok=True); shot = str(config.SCREENS / f"app{a['id']}-submit.png")
         ans = {x["question"]: x["answer"] for x in aj.get("answers", []) if x.get("answer")}
-        r = fill(j["apply_url"], ans, a["resume_pdf"], shot, submit=True, headed=headed)
+        try:
+            r = fill(j["apply_url"], ans, a["resume_pdf"], shot, submit=True, headed=headed)
+        except Exception as e:   # the window was closed or the browser crashed: say so, never leave it "approved"
+            r = {"log": [f"{e.__class__.__name__}: {str(e)[:200]}"], "error": "the submit window closed before it finished; try again"}
+        if r.get("unfilled"):   # incomplete form: back to review with those fields as questions, nothing pressed
+            aj["needs_human"] = list(dict.fromkeys((aj.get("needs_human") or []) + r["unfilled"]))
+            db.update_application(con, a["id"], status="pending_approval", answers_json=json.dumps(aj, ensure_ascii=False),
+                                  error="not submitted: " + "; ".join(x[:60] for x in r["unfilled"][:3]))
+            con.commit(); print(f"  app {a['id']} {j['company']}: back to review, {len(r['unfilled'])} required field(s) empty"); continue
         status = "sent" if r.get("submitted") else "failed"
         db.update_application(con, a["id"], status=status, sent_at=db.now() if status == "sent" else None,
                               sent_log=(a["sent_log"] or "") + "\n--- submit ---\n" + "\n".join(r.get("log", [])) + f"\nscreenshot: {shot}",
@@ -328,6 +336,49 @@ def mark_sent(con, app_id: int, message_id: str) -> None:
     con.execute("UPDATE jobs SET status='applied' WHERE id=(SELECT job_id FROM applications WHERE id=?)", (app_id,)); con.commit()
 
 
+POOL = re.compile(r"join our (network|talent)|talent (community|pool|network)|general application|future opportunit|"
+                  r"don'?t see|open application|expression of interest", re.I)
+
+
+def demo_one(con, boards: int = 12) -> int | None:
+    """The live demo: right after the storybook, find ONE job that fits and prepare it. A handful of boards, read in
+    parallel; Jev (or keywords) ranks; the best real posting (no talent pools) gets a résumé and a filled form."""
+    import concurrent.futures as cf
+    from . import setup_answers
+    if config.is_demo() and setup_answers.missing():   # the fictional applicant's blanks come from the sample answers
+        import yaml
+        sample = yaml.safe_load((config.ROOT / "demo" / "standing.yaml").read_text(encoding="utf-8")) or {}
+        cur = setup_answers.load()
+        filled = {k: v for k, v in sample.items() if v and not str(cur.get(k) or "").strip()}
+        setup_answers.save({**cur, **filled})
+        print("sample answers for:", ", ".join(filled))
+    ents = [e for e in config.companies() if e.get("ats") in ("greenhouse", "lever", "ashby")][:boards]
+    def get(e):
+        try:
+            return ats.fetch_company(e)
+        except Exception:
+            return []
+    ex = cf.ThreadPoolExecutor(len(ents) or 1)
+    futs = [ex.submit(get, e) for e in ents]
+    try:
+        for f in cf.as_completed(futs, timeout=8):   # a slow board is skipped, not waited for
+            for j in f.result():
+                db.upsert_job(con, j)
+    except cf.TimeoutError:
+        pass
+    ex.shutdown(wait=False, cancel_futures=True)
+    con.commit()
+    prefilter(con)
+    for r in con.execute("SELECT id, title FROM jobs WHERE status='new'").fetchall():
+        if POOL.search(r["title"] or ""):
+            con.execute("UPDATE jobs SET status='skipped', score_reason='talent pool, not a job' WHERE id=?", (r["id"],))
+    con.commit()
+    jev_pass(con, 400)
+    top = con.execute("SELECT id FROM jobs WHERE status='new' AND source IN ('greenhouse','lever','ashby') "
+                      "ORDER BY COALESCE(jev_p, -1) DESC, kw_score DESC LIMIT 1").fetchone()
+    return compose_job(con, top["id"]) if top else None
+
+
 def compose_job(con, job_id: int) -> int:
     """Not started → Waiting for review: résumé from storybook lines (no model), then fill the form or draft the email."""
     from .setup_answers import require
@@ -394,6 +445,7 @@ def main(argv=None):
     sub.add_parser("outbox")
     sub.add_parser("intake")
     cj = sub.add_parser("compose"); cj.add_argument("job_id", type=int)
+    sub.add_parser("demo-one")   # the live demo: one fitting job, résumé and filled form
     sub.add_parser("learn")
     rq = sub.add_parser("replies-query"); rq.add_argument("--days", type=int, default=3)
     ri = sub.add_parser("replies-ingest"); ri.add_argument("file")
@@ -489,6 +541,8 @@ def main(argv=None):
             submit_approved(con, app_id=a.app)
         elif a.cmd == "prepare":
             print("\n".join(prepare(con, a.limit)) or "nothing to prepare")
+        elif a.cmd == "demo-one":
+            print("application", demo_one(con))
         elif a.cmd == "compose":
             print("application", compose_job(con, a.job_id))
         elif a.cmd == "replies-query":

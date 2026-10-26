@@ -915,13 +915,25 @@ def chat_history():
         n = len(STATUS.get("changes") or [])
         chat.add("agent", f"Storybook updated: {n} change{'s' if n != 1 else ''}." if STATUS.get("state") == "done" else
                  f"Stopped adding to your storybook{': ' + str(STATUS.get('error'))[:160] if STATUS.get('error') else '.'}")
+        from agent import config as _c
+        if _c.is_demo() and STATUS.get("state") == "done" and n and "demo" not in CHAT:   # the demo goes on by itself: one job
+            import subprocess, sys
+            CHAT["demo"] = subprocess.Popen([sys.executable, "-m", "agent.run", "demo-one"], cwd=str(HERE.parent),
+                                            stdout=open(HERE.parent / "data" / "demo-one.log", "w"), stderr=subprocess.STDOUT)
+            chat.add("agent", "Now finding one job that fits, writing its résumé and filling its form. About a minute.")
+    d = CHAT.get("demo")
+    if d is not None and hasattr(d, "poll") and d.poll() is not None:
+        CHAT["demo"] = "done"
+        j = rows("SELECT j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id ORDER BY a.id DESC LIMIT 1")
+        chat.add("agent", f"Ready for review: {j[0]['company']} · {j[0]['title']}. Résumé written and the real form filled; open "
+                          "Job applications → Waiting for review." if j and d.returncode == 0 else "Couldn't prepare a job this time; see data/demo-one.log.")
     proc = TELL.get("proc")
     if CHAT.get("learn") and not (proc and proc.poll() is None):
         CHAT.pop("learn")
         n = len(rows("SELECT id FROM proposals WHERE status='pending'")) if rows("SELECT name FROM sqlite_master WHERE name='proposals'") else 0
         if n:
             chat.add("agent", f"{n} suggested change{'s' if n != 1 else ''} below: apply or dismiss each.")
-    return {"messages": chat.load(), "working": bool(CHAT)}
+    return {"messages": chat.load(), "working": any(k != "demo" or not isinstance(v, str) for k, v in CHAT.items())}
 
 
 @app.post("/api/chat/clear")

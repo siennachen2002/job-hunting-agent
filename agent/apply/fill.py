@@ -245,6 +245,11 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                     except Exception:
                         pass
             refill_cleared()
+            empty = [l.split(": ", 1)[1] for l in log if l.startswith(("UNFILLED required: ", "UNFILLED (no matching option"))]
+            if empty:   # never press Submit on a form we know is incomplete: it only comes back rejected
+                result["needs_person"] = "not submitted: required fields still empty"
+                result["unfilled"] = empty
+                return result
             btn = pg.get_by_role("button", name=re.compile(r"submit", re.I)).first
             btn.click(); pg.wait_for_timeout(5000)
             body = pg.inner_text("body").lower()
