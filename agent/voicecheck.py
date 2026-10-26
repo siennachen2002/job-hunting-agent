@@ -22,7 +22,9 @@ CASUAL = [r"\bmade\b", r"\bdid\b", r"\bworked on\b", r"\bhelped( with| to)?\b", 
           r"\bnamed (the|a|an|and|it)\b", r"\bthe name\b", r"\bnaming\b", r"\b(a|the) (bd |sales )?list\b"]
 SMALL_TALK = [r"\bi (really )?love (that|how|the way)\b", r"\bi'?d love to\b", r"\bi would love to\b", r"\bhonestly\b", r"\bfun fact\b",
               r"\bsuper\b", r"\bpretty much\b", r"\ba lot of\b", r"\bsort of\b", r"\blol\b", r"\bhaha\b", r"!",
-              r"\((?=[^)]*\b(i|my|me)\b)[^)]{12,}\)", r"\bcan'?t wait\b", r"\bdream (job|company|role)\b", r"\bnerd\b", r"\bobsessed\b"]
+r"\bcan'?t wait\b", r"\bdream (job|company|role)\b", r"\bnerd\b", r"\bobsessed\b"]
+VAGUE = re.compile(r"\bsomething (you|we|that|to|which)\b[^.]{0,60}\b(not|rather than)\b[^.]{0,40}\bsomething\b|"
+                   r"\b(not|rather than) something (that )?(just )?(happens|exists|is)\b|, not (just|merely|simply) (a|an|the)?\s*\w+")
 ALLOW = [r"Strategic Design and Management", r"user journeys?", r"service ecosystem", r"ecosystem map"]
 PHRASES = ["i am writing to express", "to whom it may concern", "the best candidate", "very unique", "outside-the-box", "hope this email finds you", "hope this finds you", "i came across your", "would be a great fit",
            "proven track record", "think outside the box", "hit the ground running", "wear many hats", "at the intersection of",
@@ -79,6 +81,9 @@ def lint(text: str, kind: str = "resume") -> list[Issue]:
         colons = len(re.findall(r":(?!//)", text))
         if colons:
             issues.append(Issue("hard", f"{colons} colon(s); write full sentences instead"))
+        m = VAGUE.search(low)   # an empty contrast ("as something you design for, not something that just happens")
+        if m:
+            issues.append(Issue("hard", f"vague contrast '{m.group(0)[:60]}'; name the concrete thing in precise words"))
         for pat in SMALL_TALK:
             m = re.search(pat, low)
             if m:
