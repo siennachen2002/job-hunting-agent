@@ -39,9 +39,8 @@ is welcome, casual filler ("I love that", "I'd love to") is not.
 - **Résumé.** One page, reverse-chronological, 2-4 bullets per role, each one achievement in at most two lines. Pick and order
   by the role lens (06-roles.md); the two most recent roles show every core requirement of the posting on their own, older
   ones reinforce. Word lines in the posting's nouns where they truthfully fit, never its prose; state a required domain or
-  years of experience outright when the record supports it. Two strong bullets beat four with filler. The summary is two or
-  three short sentences that tell {name}'s story and sell {name} for this role: the field, the strongest evidence, what
-  {name} brings here. No 'I', no stock phrases (seasoned, passionate, bridging, at the intersection of).
+  years of experience outright when the record supports it. Two strong bullets beat four with filler. The summary has one
+  shape, set in code: 'AI-native <role> with <N> years of experience in <fields>. Advanced skills in <skills>.'
 - **Form answers.** Answer the question asked, 90-150 words for open questions, no URLs in text boxes.
 - **Cover letters and why-us answers** are one thing, about the company's culture and the role, never a tour of their
   product. The first paragraph says it outright: {name}'s enthusiasm for this role and why {name} is a close match, tied to

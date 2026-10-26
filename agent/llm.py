@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from . import config
 from . import prompts as P         # every prompt, in one file
 from .providers import structured  # the model (and the optional draft model), see agent/providers.py
@@ -216,31 +216,51 @@ def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
 
 
 class Summary(BaseModel):
-    text: str
+    role: str = Field(description="the person's role for this posting, 1-3 words, lower case, e.g. 'product designer', 'design strategist'")
+    fields: list[str] = Field(description="2-3 fields, chosen only from FIELDS (copied exactly), most relevant to this posting first")
+    skills: list[str] = Field(description="3-5 skills or tools from the record and the page's skills section, most relevant first")
+
+    @field_validator("fields", "skills", mode="before")
+    @classmethod
+    def _as_list(cls, v):   # "a, b, c" comes back as a string sometimes
+        return [x.strip() for x in re.split(r",|\band\b", v) if x.strip()] if isinstance(v, str) else v
+
+
+def years_of_experience() -> int:
+    """Whole years since the earliest role on record started (profile.yaml entries), counted in code, never by a model."""
+    import datetime
+    starts = [e.get("start") for e in (config.profile().get("entries") or {}).values() if e.get("start")]
+    if not starts:
+        return 0
+    y, m = (int(x) for x in min(starts).split("-")[:2])
+    today = datetime.date.today()
+    return (today.year - y) - (1 if today.month < m else 0)
 
 
 def write_summary(job: dict, content: dict) -> str:
-    """Two or three sentences at the top of the résumé, for this posting. Only what the page and the storybook say:
-    a summary that brings in more than two content words from outside them (or the posting's nouns) is dropped."""
-    from .voicecheck import lint, report
+    """The résumé summary, one fixed shape: 'AI-native <role> with <N> years of experience in <fields>. Advanced skills
+    in <skills>.' The model only chooses the role, fields and skills; each must be in the record, or it is left out."""
+    allowed = [f.strip() for f in config.profile().get("summary_fields") or []]
     lines = [b["text"] for e in content.get("experience", []) for b in e.get("bullets", [])] + [p["blurb"] for p in content.get("projects", [])]
-    heads = [f"{e['org']} · {e.get('role', '')}" for e in content.get("experience", [])] + [f"{e.get('school')} · {e.get('degree')}" for e in config.profile().get("education") or []]
-    body = (f"## POSTING\n{job.get('title')} at {job.get('company')}\n{(job.get('description') or '')[:5000]}\n\n"
-            f"## ROLES\n" + "\n".join(heads) + "\n\n## RÉSUMÉ LINES\n" + "\n".join(lines))
-    known = _content_words(" ".join(lines + heads + [config.master_text()[:60000], job.get("title") or ""]))   # the record, not the posting
-    ask = body
-    for _ in range(2):
-        text = structured(_system(P.SUMMARY.format(first_name=config.first_name())), ask, Summary, effort="medium", max_tokens=800).text.strip()
-        for _ in range(2):
-            hard = [i for i in lint(text, "summary") if i.level == "hard"]
-            if not hard:
-                break
-            text = repair_text(text, report(hard) + "\nKeep it at most 45 words, résumé register, same facts.", "summary").strip()
-        extra = _content_words(text) - known
-        if len(extra) <= 1 and not any(i.level == "hard" for i in lint(text, "summary")):
-            return text
-        ask = body + f"\n\nYour last draft used words the record doesn't support ({', '.join(sorted(extra)[:8])}). Use only what these lines say."
-    return ""   # better no summary than one that says something the record doesn't
+    skills_page = [x for g in content.get("skills", []) for x in re.split(r",\s*", g.get("items", "") if isinstance(g.get("items"), str) else ", ".join(g.get("items") or []))]
+    heads = [f"{e['org']} · {e.get('role', '')}" for e in content.get("experience", [])]
+    body = (f"## POSTING\n{job.get('title')} at {job.get('company')}\n{(job.get('description') or '')[:4000]}\n\n## ROLES\n" + "\n".join(heads) +
+            "\n\n## RÉSUMÉ LINES\n" + "\n".join(lines) + "\n\n## SKILLS ON THE PAGE\n" + ", ".join(skills_page) +
+            "\n\n## FIELDS (the years apply to these only)\n" + ", ".join(allowed))
+    out = structured(_system(P.SUMMARY.format(first_name=config.first_name())), body, Summary, effort="low", max_tokens=600)
+    known = _content_words(" ".join(lines + heads + skills_page + [config.master_text()[:60000], job.get("title") or ""]))
+    ok = lambda x: x.strip() and not (_content_words(x) - known)
+    role = out.role.strip() if ok(out.role) else (job.get("title") or "").split(",")[0].strip()
+    role = re.sub(r"^(ai|AI)[- ]", "", role).strip()                      # "AI-native AI strategist" → "AI-native strategist"
+    role = " ".join(w if w.isupper() else w.lower() for w in role.split())   # lower case, acronyms kept (UX, AI)
+    fields = [f for f in allowed if f.lower() in [x.strip().lower() for x in out.fields]][:3]   # only the vetted fields
+    fields.sort(key=lambda f: [x.strip().lower() for x in out.fields].index(f.lower()))
+    skills = [k.strip() for k in out.skills if ok(k)][:5]
+    years = years_of_experience()
+    if not role or not fields or not skills or not years:
+        return ""
+    join = lambda xs: xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+    return f"AI-native {role} with {years} years of experience in {join(fields)}. Advanced skills in {join(skills)}."
 
 
 def check_changes(text: str, job: dict) -> str:

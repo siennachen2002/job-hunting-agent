@@ -43,9 +43,8 @@ ALIGN = ("Align these résumé lines to the posting. List its 5-8 core requireme
          "never add: facts are fixed, and a requirement the lines don't support stays uncovered, named in gaps. "
          "Keep entries, projects and their order.")
 
-SUMMARY = ("Write the résumé summary for this posting: two or three short sentences, at most 45 words, that tell {first_name}'s "
-           "story and sell {first_name} for this role. The field and the kind of work first, then the strongest evidence from these "
-           "résumé lines, then what {first_name} brings to this role. Résumé register: no 'I', no clichés, only facts on the page.")
+SUMMARY = ("Choose the parts of {first_name}'s résumé summary for this posting: the role in the posting's terms, the 2-3 fields "
+           "and 3-5 skills from the record that this posting cares about most. Only what the record shows; code writes the sentence.")
 
 REVISE = ("Revise this one-page résumé as the person asks. Change only what the note asks for; keep everything else as it is. "
           "Facts, numbers, titles and dates come from the master documents only: if the note asks for something they don't "

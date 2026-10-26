@@ -12,6 +12,8 @@ links:
   github: https://github.com/alexrivera
   instagram: https://www.instagram.com/alexrivera
 case_study_pattern: "alexrivera\\.design/work/([a-z0-9-]+)"
+# The résumé summary's 'N years of experience in …': only fields worked in across the whole span.
+summary_fields: [product design, user research]
 education:   # each school with its city and country
   - {school: "Example University", degree: "MS Interaction Design", location: "Pittsburgh, USA", dates: "09/2020 - 06/2022", note: ""}
 entries:
