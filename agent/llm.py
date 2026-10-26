@@ -190,6 +190,13 @@ def answer_form(job: dict, questions: list[dict]) -> FormAnswers:
             fa.needs_human.remove(q)
             if q not in have:
                 fa.answers.append(FormAnswer(question=q, answer=v, provenance="master", note="standing answer"))
+    from .answer_bank import lookup
+    for q in list(fa.needs_human):   # asked before and answered by the person: never asked again
+        v = lookup(q, job.get("company") or "")
+        if v is not None:
+            fa.needs_human.remove(q)
+            if q not in have:
+                fa.answers.append(FormAnswer(question=q, answer=v, provenance="master", note="saved answer"))
     for a in fa.answers:
         v = standing_answer(a.question, opts.get(a.question))
         if v is not None:

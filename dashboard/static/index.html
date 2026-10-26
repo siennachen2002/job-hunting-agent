@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>if (matchMedia("(max-width:760px)").matches || navigator.standalone) document.documentElement.setAttribute("data-lve-hidden", "");</script>
 <title>Job Hunter Agent</title>
 <link rel="icon" href="/static/favicon.png" type="image/png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -46,6 +47,7 @@
   .nav .badge { margin-left:auto; }
   .badge { font:600 11.5px/1 var(--mono); color:#fff; background:var(--red); border-radius:999px; padding:4px 7px; }
   .badge:empty { display:none; }
+  .tabs { display:contents; } .ls { display:none; }
 
   /* page */
   main { flex:1; min-width:0; overflow:auto; }
@@ -165,6 +167,7 @@
   .rev textarea { flex:1; border:0; resize:none; padding:6px 0; font:inherit; font-size:13px; background:transparent; box-shadow:none !important; outline:none; }
   .rev .rb { display:flex; justify-content:space-between; align-items:center; }
   .rev .mic { width:28px; height:28px; margin:0; }
+  .doc .mail.cover { font-size:7.5px; line-height:1.45; } .doc .mail.need b { color:var(--orange); font-size:9px; }
   .doc .mail { font-size:6.5px; line-height:1.4; white-space:pre-wrap; padding:9px; color:#333; }
   .doc .none { height:100%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12px; color:var(--faint); padding:12px; background:var(--sunk); }
   .qa { display:flex; flex-direction:column; gap:14px; }
@@ -215,6 +218,8 @@
   .field.blank.req input, .field.blank.req select { border-color:color-mix(in srgb, var(--orange) 60%, var(--line)); background:color-mix(in srgb, var(--orange) 5%, var(--surface)); }
   .field .nf { margin-left:8px; font-size:11.5px; font-weight:500; color:var(--orange); }
   .field.just input, .field.just select { border-color:var(--green); background:color-mix(in srgb, var(--green) 8%, var(--surface)); transition:background 1s; }
+  .saved { border-top:1px solid var(--line2); padding:12px 0; } .saved .sq { font-weight:600; font-size:14px; } .saved .sa { margin-top:3px; white-space:pre-wrap; }
+  .saved .sm { font-size:12px; color:var(--mute); margin-top:4px; display:flex; gap:10px; } .saved .sm .lk { background:none; border:0; cursor:pointer; font-size:12px; padding:0; }
   .ndot { width:8px; height:8px; border-radius:50%; background:var(--orange); margin-left:auto; }
   .composer .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; border-top:1px solid var(--line2); padding-top:10px; }
   .attached { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink2); background:var(--sunk); border-radius:8px; padding:4px 6px 4px 9px; max-width:220px; }
@@ -309,9 +314,42 @@
   @media (max-width:760px) {
     body { display:block; } aside { position:static; width:auto; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; padding:10px 12px; border-right:0; border-bottom:1px solid var(--line); }
     .brand { padding:4px 10px 4px 4px; } .page { padding:24px 16px 80px; }
-    .tell { grid-template-columns:1fr; } .drop { min-height:120px; }
+    .tell { grid-template-columns:minmax(0, 1fr); } .composer { min-width:0; } .drop { min-height:120px; }
     .reader { grid-template-columns:1fr; } .toc { flex-direction:row; flex-wrap:wrap; border-right:0; border-bottom:1px solid var(--line2); } .toc .h { display:none; } .toc .back { margin:0; border:0; padding:0; }
     .md { padding:20px 18px 30px; } .fgrid { grid-template-columns:1fr; } .ev { grid-template-columns:1fr; gap:4px; } .li { flex-wrap:wrap; }
+
+    /* phone: one slim top bar, a bottom tab bar, full-screen detail with its actions pinned to the bottom */
+    aside { position:sticky; top:0; z-index:30; flex-wrap:nowrap; gap:8px; padding:calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+      background:var(--surface); }   /* no backdrop-filter here: it would trap the fixed tab bar inside the top bar */
+    .brand { padding:0; } .brand span { display:none; }
+    .acct-wrap { flex:1; min-width:0; } .acct { width:auto; max-width:100%; padding:5px 10px 5px 6px; } .acct small { display:none; }
+    .side-foot .refresh { width:auto; padding:8px 10px; } .side-foot .refresh span { display:none; }
+    .tabs { position:fixed; left:0; right:0; bottom:0; z-index:30; display:grid; grid-template-columns:repeat(4, 1fr);
+      padding:6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--line);
+      background:color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+    .tabs .nav { flex-direction:column; justify-content:center; gap:3px; padding:6px 2px; font-size:11px; font-weight:550; border-radius:10px; }
+    .tabs .nav .i { width:22px; height:22px; } .tabs .nav.on { background:transparent; color:var(--red); }
+    .tabs .nav .badge { position:absolute; top:1px; left:calc(50% + 5px); padding:3px 5px; font-size:10px; }
+    .ll { display:none; } .ls { display:inline; }
+    .page { padding:14px 14px calc(92px + env(safe-area-inset-bottom, 0px)); }
+    h1 { font-size:22px; } .ph { margin-bottom:14px; } .jobs-h > div:first-child { display:none; } .jobs-h { margin-bottom:12px; }
+    .seg { display:flex; width:100%; box-sizing:border-box; margin:0; } .seg button { flex:1; justify-content:center; gap:6px; padding:8px 4px; }
+    .banner { font-size:12.5px; padding:9px 12px; }
+    .qi { padding:13px 14px; }
+    .docs { flex-wrap:wrap; gap:12px; } .doc { width:calc(50% - 6px); } .doc .pv { width:100%; height:auto; aspect-ratio:136 / 176; } .rev { width:100%; height:140px; }
+    .facts { gap:6px; } .fact { font-size:12.5px; }
+    body.m-detail .tabs, body.m-detail .jobs-h, body.m-detail .banner, body.m-detail .demo-bar { display:none; }
+    body.m-detail .page { padding:0 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
+    body.m-detail .split { border:0; border-radius:0; box-shadow:none; }
+    body { height:auto; min-height:100%; }   /* the page scrolls, so the sticky top bar needs a body as tall as the page */
+    main { overflow:visible; } body.m-detail .split, body.m-detail .d-scroll { overflow:visible; }
+    body.m-detail .back-m { position:sticky; top:calc(54px + env(safe-area-inset-top, 0px)); z-index:5; background:var(--surface); margin:0 -18px 8px; padding:10px 18px; width:calc(100% + 36px); box-sizing:border-box; border:0; border-bottom:1px solid var(--line2); border-radius:0; }
+    body.m-detail .d-foot { position:fixed; left:0; right:0; bottom:0; z-index:31; flex-wrap:nowrap; padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      box-shadow:0 -6px 20px rgba(28,25,23,.06); }
+    body.m-detail .d-foot .hint { display:none; } body.m-detail .d-foot .btn { flex:1; justify-content:center; padding:11px 12px; }
+    .drop { flex-direction:row; justify-content:flex-start; text-align:left; min-height:0; padding:12px 14px; gap:12px; } .drop span { display:none; } .drop .di { width:36px; height:36px; }
+    .composer { padding:14px 14px 10px; } .composer .try { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .composer .try .pill { white-space:nowrap; }
+    .chat { max-height:50vh; } .msg { max-width:90%; }
   }
 </style>
 </head>
@@ -320,10 +358,12 @@
   <div class="brand"><img src="/static/icon.png" alt=""><span>Job Hunter Agent</span></div>
   <div class="acct-wrap"><button class="acct" id="acct" onclick="toggleAccounts(event)"><span class="av" id="acct-av">·</span><span class="an"><b id="acct-name">…</b><small id="acct-kind"></small></span><span class="cv">▾</span></button>
     <div class="acct-menu" id="acct-menu" hidden></div></div>
-  <button class="nav on" data-tab="jobs"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>Job applications <span class="badge" id="c-jobs"></span></button>
+  <nav class="tabs">
+  <button class="nav on" data-tab="jobs"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg><span class="ll">Job applications</span><span class="ls">Jobs</span> <span class="badge" id="c-jobs"></span></button>
   <button class="nav" data-tab="storybook"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2.5Z"/><path d="M4 19.5A2 2 0 0 0 6 21h13M9 7h6"/></svg>Storybook</button>
   <button class="nav" data-tab="activity"><svg class="i" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</button>
   <button class="nav" data-tab="setup"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Setup <span class="badge" id="c-setup"></span></button>
+  </nav>
   <div class="side-foot">
     <button class="btn refresh" id="refresh" onclick="refreshJobs()"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span>Refresh</span></button>
     <div class="cap" id="refresh-cap"></div>
@@ -411,7 +451,10 @@ async function reject(id) { const why = prompt('Why not? (optional; the agent le
 async function saveAnswers(id, isEmail, b) {
   const box = $('#detail');
   if (isEmail) await post(`/api/applications/${id}/edit`, {email_to: box.querySelector('[data-k=to]').value, email_subject: box.querySelector('[data-k=subject]').value, email_body: box.querySelector('[data-k=body]').value});
-  else await post(`/api/applications/${id}/answers`, {answers: [...box.querySelectorAll('[data-q]')].map(i => ({q: i.dataset.q, a: i.value})).filter(x => x.a.trim())});
+  else {
+    const r = await post(`/api/applications/${id}/answers`, {answers: [...box.querySelectorAll('[data-q]')].map(i => ({q: i.dataset.q, a: i.value})).filter(x => x.a.trim())});
+    if (r && r.saved) toast(`Saved ${r.saved === 1 ? 'that answer' : r.saved + ' answers'} for next time${r.elsewhere ? `, and answered the same question on ${r.elsewhere === 1 ? 'another application' : r.elsewhere + ' other applications'}` : ''}. See Storybook → Saved answers.`);
+  }
   b.innerHTML = I.check + 'Saved'; editing = false; setTimeout(() => render(), 400);
 }
 async function prep(id, b) { b.innerHTML = '<span class="spin"></span>Preparing…'; b.disabled = true; const r = await post(`/api/jobs/${id}/prepare`); if (r && r.ok === false) { alert(r.msg); return render(); } watchPrep(); }
@@ -468,7 +511,7 @@ async function prepPicked(b) {
   toast(`Preparing ${r.started} ${r.started === 1 ? 'job' : 'jobs'}, one at a time${r.skipped ? ` (${r.skipped} skipped: below a 50% match or already preparing)` : ''}. Each one moves to Waiting for review when it's ready.`);
   render(); watchPrep();
 }
-function pickJob(k) { sel[sub] = k; editing = false; mobileOpen = true; render(); }
+function pickJob(k) { sel[sub] = k; editing = false; mobileOpen = true; render().then(() => { if (innerWidth <= 760) window.scrollTo(0, 0); }); }
 
 function header(c) {
   const facts = [c.location && `<span class="fact">${PIN}${esc(c.location)}</span>`, c.salary && `<span class="fact">${CASH}<b>${esc(c.salary)}</b></span>`, c.start && `<span class="fact">${CAL}Starts ${esc(c.start)}</span>`].filter(Boolean).join('');
@@ -477,6 +520,34 @@ function header(c) {
   return `<button class="btn quiet sm back-m" onclick="mobileOpen=false;render()">← All jobs</button>
     <div class="d-head">${mono(c.company).replace('class="mono"', 'class="mono lg"')}<div class="tt"><div class="co">${esc(c.company)}</div><h2>${esc(c.title)}</h2></div>${ring(c)}</div>
     ${facts ? `<div class="facts">${facts}</div>` : ''}<div class="links">${links}</div>`;
+}
+
+// "Why us?", "why do you want to work here", a cover letter field: one thing, shown as a third document to review
+const COVER_RX = /\bwhy\b.*\b(us|join|work|company|here|this|apply|applying|role)\b|why (do|would) you want|interested in (joining|working|this|our)|excit\w* (you )?about|what excites|what (draws|attracts)|motivates you to|cover letter/i;
+const COVERS = {};
+function coverOf(c) {
+  const isCover = q => COVER_RX.test(q) || (c.company && new RegExp('\\bwhy\\s+' + c.company.split(' ')[0].replace(/[^\w]/g, ''), 'i').test(q));
+  const f = (c.fields || []).find(x => isCover(x.q)), need = (c.needs || []).find(isCover);
+  if (!f && !need) return null;
+  return COVERS[c.app_id] = {q: f ? f.q : need, text: f ? f.a : '', need: !f, company: c.company};
+}
+function coverDoc(c, done) {
+  const cv = coverOf(c); if (!cv) return '';
+  return `<button class="doc" onclick="showCover(${c.app_id}, ${done})"><div class="pv"><div class="mail cover ${cv.need ? 'need' : ''}">${cv.need ? '<b>Needs your draft</b>\n\n' : ''}${esc(cv.text || cv.q)}</div></div>
+    <div class="lb">Cover letter <span>· why ${esc(c.company)}</span></div></button>`;
+}
+function showCover(id, done) {
+  const cv = COVERS[id];
+  modal(`<div class="job-t"><div class="job-co">${esc(cv.company)} · cover letter</div><h3>${esc(cv.q)}</h3></div>`,
+    done ? esc(cv.text) : `${cv.need ? `<p class="hint" style="margin:0 0 10px">${esc(cv.company)} asks for your own first draft here. Write it, and it goes out with this application once you approve it.</p>` : ''}
+      <textarea id="cover-text" style="min-height:300px;white-space:pre-wrap">${esc(cv.text)}</textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px"><button class="btn primary sm" onclick="saveCover(${id}, this)">${I.check}Save</button>
+      <span class="hint">${cv.text ? (cv.text.trim().split(/\s+/).length + ' words') : ''}</span></div>`);
+}
+async function saveCover(id, b) {
+  const cv = COVERS[id], text = $('#cover-text').value;
+  await post(`/api/applications/${id}/answers`, {answers: [{q: cv.q, a: text}]});
+  b.innerHTML = I.check + 'Saved'; setTimeout(() => { document.querySelector('.modal')?.remove(); render(); }, 400);
 }
 
 function detailApp(c, done) {
@@ -503,7 +574,7 @@ function detailApp(c, done) {
           ${r.view_url ? `<a class="lk" href="${esc(r.view_url)}" target="_blank">Open in Gmail${I.ext}</a>` : ''}</div><p>${esc((r.snippet || '').slice(0, 280))}</p></div>`).join('')
           : `<div style="font-size:13.5px;color:var(--mute)">${ACCTS && ACCTS.demo ? 'Demo account: nothing was sent, so no reply will come.' : 'No replies yet. The inbox is checked once a day.'}</div>`}</div>` : ''}
       <div class="section"><div class="sh"><h4>Documents</h4></div><div class="docs">
-        <button class="doc" onclick="showImg('/resume-png/${c.app_id}?v=${REVV[c.app_id] || ''}', ${esc(JSON.stringify(c.company))}, 'Résumé', '/resume/${c.app_id}')"><div class="pv"><img src="/resume-png/${c.app_id}?v=${REVV[c.app_id] || ''}" alt="">${REV[c.app_id] === 'running' ? '<span class="rbadge"><span class="spin"></span>Revising</span>' : REV[c.app_id] === 'done' ? '<span class="gdot" title="Revised"></span>' : ''}</div><div class="lb">Résumé <span>· 1 page</span></div></button>${shot}${done ? '' : reviseBox(c)}</div></div>
+        <button class="doc" onclick="showImg('/resume-png/${c.app_id}?v=${REVV[c.app_id] || ''}', ${esc(JSON.stringify(c.company))}, 'Résumé', '/resume/${c.app_id}')"><div class="pv"><img src="/resume-png/${c.app_id}?v=${REVV[c.app_id] || ''}" alt="">${REV[c.app_id] === 'running' ? '<span class="rbadge"><span class="spin"></span>Revising</span>' : REV[c.app_id] === 'done' ? '<span class="gdot" title="Revised"></span>' : ''}</div><div class="lb">Résumé <span>· 1 page</span></div></button>${shot}${coverDoc(c, done)}${done ? '' : reviseBox(c)}</div></div>
       ${ask}
       <div class="section"><div class="sh"><h4>${c.email_body ? 'Email' : 'Filled by the agent'} <span class="n">${c.email_body ? '' : c.fields.length}</span></h4>
         ${done ? '' : ed ? `<span style="display:flex;gap:6px"><button class="btn sm quiet" onclick="editing=false;render()">Cancel</button><button class="btn sm primary" onclick="saveAnswers(${c.app_id}, ${!!c.email_body}, this)">Save</button></span>` : `<button class="btn sm quiet" onclick="editing=true;render()">${I.pen}Edit</button>`}</div>${filled}</div>
@@ -528,7 +599,7 @@ async function renderJobs(p) {
   const [rv, td, ap, cfg] = await Promise.all([...['review', 'todo', 'applied'].map(t => api('/api/board?tab=' + t)), api('/api/config')]);
   $('#c-jobs').textContent = rv.length || '';
   const lists = {review: rv, todo: td, applied: ap};
-  const names = {review: 'Waiting for review', todo: 'Not started', applied: 'Applied'};
+  const names = {review: 'Waiting for review', todo: 'Not started', applied: 'Applied'}, short = {review: 'Review', todo: 'To do', applied: 'Applied'};
   const list = sub === 'applied' ? appliedOrder(ap) : lists[sub];
   if (!list.some(c => keyOf(c) === sel[sub])) sel[sub] = list.length ? keyOf(list[0]) : null;
   const cur = list.find(c => keyOf(c) === sel[sub]);
@@ -539,8 +610,9 @@ async function renderJobs(p) {
   const empty = Object.values(lists).every(l => !l.length) ? 'No jobs yet. Press Refresh at the bottom left to find some.'
     : {review: 'Nothing is waiting for you.', todo: 'Nothing waiting to start.', applied: 'Nothing sent yet.'}[sub];
   const keepScroll = $('.queue') ? $('.queue').scrollTop : 0;
-  p.innerHTML = `<div class="ph"><div><h1>Job applications</h1></div>
-      <div class="seg" style="margin:0">${Object.keys(names).map(k => `<button class="${k === sub ? 'on' : ''}" onclick="sub='${k}';editing=false;mobileOpen=false;render()">${names[k]}<span class="n">${lists[k].length}</span></button>`).join('')}</div></div>
+  document.body.classList.toggle('m-detail', mobileOpen && !!cur);
+  p.innerHTML = `<div class="ph jobs-h"><div><h1>Job applications</h1></div>
+      <div class="seg" style="margin:0">${Object.keys(names).map(k => `<button class="${k === sub ? 'on' : ''}" onclick="sub='${k}';editing=false;mobileOpen=false;render()"><span class="ll">${names[k]}</span><span class="ls">${short[k]}</span><span class="n">${lists[k].length}</span></button>`).join('')}</div></div>
     ${banner}
     ${list.length ? `<div class="split ${mobileOpen ? 'open' : ''}"><div class="queue">${sub === 'todo' ? `<div class="bulk"><label class="ck"><input type="checkbox" id="bulk-all" onchange="pickAll(this.checked)"></label><span>Select all</span>
         <button class="btn primary sm" id="bulk-go" disabled onclick="prepPicked(this)">Prepare selected</button></div>` : ''}${sub === 'applied' ? appliedQueue(list) : list.map(queueItem).join('')}</div>
@@ -570,6 +642,15 @@ function appliedQueue(list) {
     <div class="qh">No reply yet<span>${n('waiting')}</span></div>${items('waiting')}`;
 }
 
+function savedAnswers(list) {
+  return `<h1 style="margin-top:0">Saved answers</h1>
+    <p>What you typed into <i>Questions for you</i>. When another application asks the same kind of question, the agent answers it from here
+    and doesn't ask again. Answers that belong to one application (why this company, salary, essays, legal agreements) are never saved.</p>
+    ${list.length ? list.map((a, i) => `<div class="saved"><div class="sq">${esc(a.question)}${a.scope !== 'any' ? ` <span class="opt">${esc(a.scope)} only</span>` : ''}</div>
+      <div class="sa">${esc(a.answer)}</div><div class="sm">From ${esc(a.from || '')} · ${esc(a.saved || '')}<button class="lk" onclick="forgetAnswer(${i})">Forget</button></div></div>`).join('')
+      : '<div class="empty" style="padding:24px 0">Nothing saved yet. Answer a question on an application and it shows up here.</div>'}`;
+}
+async function forgetAnswer(i) { await fetch('/api/saved-answers/' + i, {method: 'DELETE'}); render(); }
 const FILLED = new Set();   // standing answers the chat box just filled: highlighted once
 function standingForm(sa) {
   const v = sa.values || {}; let sec = '', html = '';
@@ -599,7 +680,8 @@ async function renderStorybook(p) {
   const fs = files.filter(f => !f.name.startsWith('_'));
   const sa = await api('/api/standing');
   if (!pbFile) pbFile = sa.missing.length ? '@standing' : (fs[0] && fs[0].name);
-  const doc = pbFile && pbFile !== '@standing' ? await api('/api/playbook/' + pbFile) : {text: ''};
+  const doc = pbFile && !pbFile.startsWith('@') ? await api('/api/playbook/' + pbFile) : {text: ''};
+  const saved = pbFile === '@saved' ? await api('/api/saved-answers') : [];
   const pend = props.filter(x => x.status === 'pending');
   const running = st.state === 'running';
   const progress = st.state && st.state !== 'idle' ? `<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><b>${running ? (st.mode === 'add' ? 'Adding to your storybook' : 'Adjusting your storybook') : st.state === 'done' ? 'Storybook updated' : 'Stopped'}</b><span style="font-size:12.5px;color:var(--mute)">${esc(st.reference || '')}</span></div>
@@ -626,9 +708,10 @@ async function renderStorybook(p) {
       <nav class="toc"><div class="h">Required</div>
         <button class="${pbFile === '@standing' ? 'on' : ''}" onclick="pbFile='@standing';render()" style="display:flex;align-items:center;gap:6px">Standing answers
           ${sa.missing.length ? `<span class="ndot" title="Some required answers are still blank"></span>` : `<span style="color:var(--green);margin-left:auto">${I.check}</span>`}</button>
+        <button class="${pbFile === '@saved' ? 'on' : ''}" onclick="pbFile='@saved';render()">Saved answers</button>
         <div class="h" style="margin-top:10px">Files</div>${fs.map(f => `<button class="${f.name === pbFile ? 'on' : ''}" onclick="pbFile='${f.name}';render()">${esc(label(f.name))}</button>`).join('')}
         <div class="back"><button ${vs.length ? '' : 'disabled'} onclick="back()" title="${vs.length ? vs.length + ' saved version(s)' : 'No earlier version yet'}">${I.undo}Back to previous version</button></div></nav>
-      <article class="md">${pbFile === '@standing' ? standingForm(sa) : (window.marked ? marked.parse(doc.text) : '<pre>' + esc(doc.text) + '</pre>')}</article>
+      <article class="md">${pbFile === '@saved' ? savedAnswers(saved) : pbFile === '@standing' ? standingForm(sa) : (window.marked ? marked.parse(doc.text) : '<pre>' + esc(doc.text) + '</pre>')}</article>
     </div>`;
   const drop = $('#drop'), file = $('#file');
   drop.onclick = () => file.click();
@@ -898,12 +981,13 @@ async function renderActivity(p) {
 async function render() {
   document.querySelectorAll('aside .nav').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const p = $('#page');
+  if (tab !== 'jobs') document.body.classList.remove('m-detail');
   if (tab === 'jobs') await renderJobs(p);
   else if (tab === 'storybook') await renderStorybook(p);
   else if (tab === 'setup') await renderSetup(p);
   else await renderActivity(p);
 }
-document.querySelectorAll('aside .nav').forEach(b => b.onclick = () => { tab = b.dataset.tab; clearInterval(poll); render(); });
+document.querySelectorAll('aside .nav').forEach(b => b.onclick = () => { tab = b.dataset.tab; mobileOpen = false; clearInterval(poll); render(); window.scrollTo(0, 0); });
 loadAccounts();
 api('/api/setup').then(st => { setupBadge(st); if (!st.ready) tab = 'setup'; }).catch(() => {}).finally(() => render());
 showRefresh(); setInterval(showRefresh, 60000);

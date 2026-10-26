@@ -577,6 +577,7 @@ def _match(j):
 
 
 _MONEY = re.compile(r"(?:US)?\$\s?\d[\d,.]*\s?[kK]?(?:\s?(?:-|–|—|to)\s?(?:US)?\$?\s?\d[\d,.]*\s?[kK]?)?(?:\s?(?:/|per\s)(?:hour|hr|year|yr))?")
+_DATEISH = re.compile(r"\b(19|20)\d\d\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(spring|summer|fall|autumn|winter|immediately|asap|q[1-4])\b|\d{1,2}/\d{1,2}", re.I)
 _START = re.compile(r"(?:start(?:ing)?\s+date|start(?:s|ing)?\s+(?:in|on|by)|available\s+to\s+start)[:\s]+([^.\n<]{3,40})", re.I)
 
 
@@ -590,7 +591,7 @@ def _facts(j):
     if not salary:
         hits = [m.group(0).strip() for m in _MONEY.finditer(text) if any(x in m.group(0) for x in "-–—to") or "/" in m.group(0)]
         salary = hits[0] if hits else None
-    m = _START.search(text)
+    m = next((x for x in _START.finditer(text) if _DATEISH.search(x.group(1))), None)   # "starts in June 2027", not "starts by an LLM"
     return {"salary": salary, "start": m.group(1).strip() if m else None}
 
 
@@ -754,8 +755,26 @@ def save_answers(app_id: int, body: Answers):
             if ans.strip() and q in (aj.get("needs_human") or []):
                 aj.setdefault("answers", []).append({"question": q, "answer": ans, "provenance": "you"})
         answered = {x["question"] for x in aj.get("answers", []) if (x.get("answer") or "").strip()}
+        from agent import answer_bank
+        company = con.execute("SELECT j.company FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?", (app_id,)).fetchone()[0]
+        saved = [q for q in (aj.get("needs_human") or []) if q in answered and answer_bank.remember(q, {x["q"]: x["a"] for x in body.answers}.get(q, ""), company)]
         aj["needs_human"] = [q for q in (aj.get("needs_human") or []) if q not in answered]
         db.update_application(con, app_id, answers_json=json.dumps(aj, ensure_ascii=False))
+        con.commit()
+        elsewhere = answer_bank.fill_pending(con, skip_app=app_id) if saved else 0   # the same question on other applications
+    return {"ok": True, "saved": len(saved), "elsewhere": elsewhere}
+
+
+@app.get("/api/saved-answers")
+def saved_answers():
+    from agent import answer_bank
+    return answer_bank.load()
+
+
+@app.delete("/api/saved-answers/{i}")
+def forget_answer(i: int):
+    from agent import answer_bank
+    answer_bank.forget(i)
     return {"ok": True}
 
 

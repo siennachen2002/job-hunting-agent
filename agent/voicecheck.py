@@ -21,7 +21,7 @@ CASUAL = [r"\bmade\b", r"\bdid\b", r"\bworked on\b", r"\bhelped( with| to)?\b", 
           r"\bgave a talk\b", r"\bshare how\b",
           r"\bnamed (the|a|an|and|it)\b", r"\bthe name\b", r"\bnaming\b", r"\b(a|the) (bd |sales )?list\b"]
 ALLOW = [r"Strategic Design and Management", r"user journeys?", r"service ecosystem", r"ecosystem map"]
-PHRASES = ["i am writing to express", "hope this email finds you", "hope this finds you", "i came across your", "would be a great fit",
+PHRASES = ["i am writing to express", "to whom it may concern", "the best candidate", "very unique", "outside-the-box", "hope this email finds you", "hope this finds you", "i came across your", "would be a great fit",
            "proven track record", "think outside the box", "hit the ground running", "wear many hats", "at the intersection of",
            "fast-paced world", "it's important to note", "in conclusion", "look forward to hearing from you", "please don't hesitate",
            "a testament to", "serves as", "stands as", "plays a vital role", "a wide range of", "a diverse array of", "with a focus on",

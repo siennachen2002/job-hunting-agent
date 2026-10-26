@@ -27,6 +27,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Made the marketing video in my own editor | Produced the 25-second motion graphics video in CodeCut | Precise verb, named tool, number |
 | Built a BD list of contacts | Built a business-development target database: 226 contacts across 7 segments, each mapped to an offer | Says what it is and how big |
 | Spearheaded a seamless, innovative redesign | Redesigned the site's information architecture from interviews with the founding team | Cliché out, method in |
+| I admire Figma's commitment to collaboration and innovation | Figma's AI Insights team is making customer research readable to every Figmate; at Bayer I watched sprint knowledge vanish after every session | Swap test: the weak line fits any company; the strong one fits only this one |
+| I am a passionate, strategic thinker with a proven track record | Reframed the client's brief from X to Y, and the team adopted it | Evidence, not adjectives |
 | Consulting posting: synthesized four insight clusters into three How Might We questions | Synthesized findings into four insight clusters and three problem statements that framed the engagement | Same facts in the reader's field's words: How Might We is design-thinking vocabulary, consulting says problem statement |
 | Helped with research | Ran 20+ stakeholder interviews across three continents | Who did what, how much |
 | Skills: particle systems, SDF, scroll-driven animation | Creative coding: Three.js, p5.js, WebGL | Skills name tools and disciplines; techniques roll up under them (list techniques only for roles that ask, e.g. generative art) |
@@ -42,7 +44,11 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   The two most recent roles must, on their own, show every core requirement in the posting; older roles and projects
   reinforce, they don't fill gaps. Leave out recent work that doesn't serve this posting, even a current job.
 - Form answers: answer the question asked, 90-150 words for open questions, no URLs in text boxes.
-- Why-us answers: mission first, then personality (what {name} loves doing, how {name} works), experience last. Experience shows fit for the role; the company wants to know fit with them. Warm, a little American energy.
+- Why-us answers and cover letters are one thing: mission first, made concrete (one thing the company actually built, decided or
+  published, and {name}'s honest reaction to it; never a paraphrased slogan), then personality shown through one short story
+  (what {name} loves doing, how {name} works), experience last. Swap test: if a sentence still works with another company's
+  name in it, cut it. Say what the résumé can't; never summarize it. One story, not a list. Write it the way {name} would say
+  it across a table. Warm, a little American energy.
 - Emails: under 120 words (more only if the employer asks for write-ups), one specific reason, one piece of evidence,
   one clear ask. Links are words, written as [words](url).
 

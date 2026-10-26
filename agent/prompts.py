@@ -48,9 +48,13 @@ REPAIR = "Rewrite the text to fix the listed problems. Same facts, same or short
 
 ANSWERS = "Answer this application form. Anything only {first_name} can answer goes in needs_human with a short reason."
 
-WHY_US = ("For a why-us question (why this company, what excites you about us): open with the company's mission in a sentence, "
-          "in their words or close to them; then why it matters to the candidate as a person: character, habits, what they "
-          "love doing (07-voice.md); experience last, one light touch at most. Never open with the candidate. "
+WHY_US = ("For a why-us question or cover letter (why this company, why this role, what excites you about us): open with the company's "
+          "mission made concrete: one specific thing they built, decided or published (from the posting or the mission notes) and the "
+          "candidate's honest reaction to it, never a paraphrased slogan. Then why it matters to the candidate as a person, shown "
+          "through one short story, not adjectives: character, habits, what they love doing (07-voice.md); experience last, one light "
+          "touch at most. Never open with the candidate or 'I am writing'. Swap test: delete any sentence that would still be true "
+          "with another company's name in it. Don't summarize the résumé, don't list what the candidate wants from the job, "
+          "use a number only if the master documents give it. Write it the way they'd say it across a table. "
           "A little American warmth and energy is welcome; hype words are not.")
 
 EMAIL = ("Write a {kind} email from {first_name} to this company. Hinge it on one concrete thing in the context; "
@@ -58,7 +62,8 @@ EMAIL = ("Write a {kind} email from {first_name} to this company. Hinge it on on
 
 EMAIL_PROBLEM = "Propose, in 2-3 sentences, what the person would do about it, grounded in what they have actually done."
 
-COVER = ("Draft a cover letter and a 'Why {company}' answer for {first_name}. Use only storybook facts "
+COVER = ("Draft a cover letter and a 'Why {company}' answer for {first_name}, following the why-us rule: concrete mission first, "
+         "one story, swap test on every sentence. Use only storybook facts "
          "and what the posting or research says about the company. If the employer requires the candidate's own first draft, "
          "leave both fields empty and explain in needs_human.")
 
