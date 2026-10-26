@@ -35,6 +35,7 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Built… Built… Designed and built… Designed… (one page) | Architected, shipped, conducted, established, authored | Vary the opening verb; pick the one the field uses for that act |
 | Consulting posting: newest role shows design screens; client interviews and readouts sit in a 2024 entry | Newest two roles carry the client engagement, synthesis, business case and AI evaluation; the 2024 entry adds one supporting line | A reader judges you by what you did last |
 | 1. [CodeCut](link). Problem: motion graphics are mostly code… | I built CodeCut, an open-source video editor where a designer and AI agents edit the same timeline, because every small fix used to mean regenerating the whole video | Say what a thing is and why it exists before any detail; the reader knows nothing yet |
+| Two builds, as you asked: | You asked for one or two things I've built, so here are the two closest to this role. | Full sentences; a clipped lead-in with a colon reads machine-written |
 | Selected work | Selected Projects | The section is projects, so name it with the field's word |
 | I am excited to apply… / At Acme I designed… so I want to join Northwind | Northwind's mission is to make the grid run on clean power. I love that it's a mission about plumbing, not slogans… | Why-us answers open with their mission, then why it matters to {name} as a person; experience last, lightly |
 
