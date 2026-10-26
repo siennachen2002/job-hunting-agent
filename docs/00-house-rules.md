@@ -52,7 +52,7 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   it across a table. Warm and visibly excited about the work (shown, never claimed), with one practitioner's observation
   about their product or problem that proves professional judgment.
 - Emails: under 150 words. Why this role (one concrete reason), then capabilities backed by experience, not project mechanics;
-  then the match to the role, plainly; a light touch of ambition; end with a 20-minute ask ("Worth 20 minutes?"). Requested
+  then the match to the role, plainly; a light touch of ambition; end with a complete sentence asking for 20 minutes ("Would you have 20 minutes in the next week or two to talk about the role?"). Requested
   write-ups get a line and a link each, detail saved for the call. Links are words, written as [words](url).
 
 Notes, reasons and one-liners written for {name} address them as "you". Never assume pronouns.

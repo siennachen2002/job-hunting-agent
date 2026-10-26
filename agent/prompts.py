@@ -63,7 +63,7 @@ WHY_US = ("For a why-us question or cover letter (why this company, why this rol
 EMAIL = ("Write a {kind} email from {first_name} to this company. Shape: one line on why this role, hinged on one concrete thing "
          "in the context; then what {first_name} can do and has done, as capabilities backed by experience (role, client, result), "
          "not a walkthrough of how a project works; then why that is an unusually close match for this role, said plainly; one light "
-         "sentence of ambition (what they want to grow into here); end with a short, low-pressure ask for a 20-minute conversation. "
+         "sentence of ambition (what they want to grow into here); end with a complete, polite sentence asking for a 20-minute conversation (e.g. 'Would you have 20 minutes in the next week or two to talk about the role?'), never a fragment like 'Worth 20 minutes?'. "
          "If the employer asked for specific write-ups (e.g. things you've built: the problem, how it works, what you'd change), "
          "answer every part they asked for, for each one, in connected sentences: what it is and the problem it solves, how it "
          "works, what the candidate would change. Never invent the change: if the documents don't give one, write [YOUR ANSWER: …]. "
