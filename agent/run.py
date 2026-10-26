@@ -298,7 +298,9 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
                     dump["needs_human"].append(m.group(1).strip())
             opts = {q["label"]: q["options"] for q in qs if q.get("options")}
             dump["needs_options"] = {n: opts[n] for n in fa.needs_human if n in opts}   # shown as a dropdown in "Questions for you"
-            db.update_application(con, a["id"], kind="ats_web", status="pending_approval", answers_json=json.dumps(dump, ensure_ascii=False),
+            from .doctor import fill_version, _init as _doc_init
+            _doc_init(con)
+            db.update_application(con, a["id"], kind="ats_web", status="pending_approval", answers_json=json.dumps(dump, ensure_ascii=False), fill_version=fill_version(),
                                   sent_log="\n".join(r.get("log", [])) + f"\nscreenshot: {shot}", error=r.get("error"))
             done.append(f"{j['company']} · {j['title']}: form filled, {len(fa.needs_human)} question(s) for you")
         else:
@@ -510,6 +512,7 @@ def main(argv=None):
     cj = sub.add_parser("compose"); cj.add_argument("job_id", type=int)
     sub.add_parser("demo-one")   # the live demo: one fitting job, résumé and filled form
     fj = sub.add_parser("find-jobs"); fj.add_argument("--n", type=int, default=1)   # started from the Storybook chat
+    sub.add_parser("doctor")   # the self-check: every waiting application brought up to today's rules
     sub.add_parser("learn")
     rq = sub.add_parser("replies-query"); rq.add_argument("--days", type=int, default=3)
     ri = sub.add_parser("replies-ingest"); ri.add_argument("file")
@@ -584,7 +587,13 @@ def main(argv=None):
                     print("replies:", got or "none new")
                 except Exception as e:
                     print("mail check failed:", e)
-            config.REFRESHED.write_text(json.dumps({"at": db.now(), "new": new, "replies": replies, **update}))
+            try:   # the self-check: bugs fixed in code are fixed in every waiting application too
+                from .doctor import run as doctor_run
+                doc = doctor_run(con); print("self-check:", json.dumps(doc, ensure_ascii=False))
+            except Exception as e:
+                doc = {"fixed": [], "error": str(e)[:200]}; print("self-check failed:", e)
+            config.REFRESHED.write_text(json.dumps({"at": db.now(), "new": new, "replies": replies, "fixed": len(doc.get("fixed", [])),
+                                                    "blanks": len(doc.get("blanks", [])), **update}))
             print(f"{new} new postings")
         elif a.cmd == "prefilter":
             k, d = prefilter(con); print(f"kept {k}, dropped {d}")
@@ -605,6 +614,10 @@ def main(argv=None):
             submit_approved(con, app_id=a.app)
         elif a.cmd == "prepare":
             print("\n".join(prepare(con, a.limit)) or "nothing to prepare")
+        elif a.cmd == "doctor":
+            from .doctor import run as doctor_run
+            rep = doctor_run(con)
+            print(json.dumps(rep, ensure_ascii=False, indent=1))
         elif a.cmd == "find-jobs":
             print("applications", find_jobs(con, max(1, min(5, a.n))))
         elif a.cmd == "demo-one":
@@ -643,6 +656,11 @@ def main(argv=None):
                               (prefs.get("min_score_to_apply", 70), a.max_tailor)).fetchall()
             made = [tailor(con, r["id"]) for r in top]
             prepared = prepare(con, len(made) + 5)
+            try:
+                from .doctor import run as doctor_run
+                doctor_run(con)
+            except Exception as e:
+                print("self-check failed:", e)
             try:
                 from .learn import propose
                 learned = propose(con)

@@ -438,8 +438,9 @@ function ago(s) { if (!s) return ''; const m = Math.round((Date.now() - new Date
 async function showRefresh() {
   const r = await api('/api/refresh'), b = $('#refresh'), cap = $('#refresh-cap');
   b.classList.toggle('busy', r.running); b.disabled = r.running; b.querySelector('span').textContent = r.running ? 'Refreshing…' : 'Refresh jobs & replies';
-  const bits = r.at ? [`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, r.replies ? `${r.replies} ${r.replies === 1 ? 'reply' : 'replies'}` : ''].filter(Boolean).join(' · ') : '';
-  cap.textContent = r.running ? (ACCTS && ACCTS.demo ? 'Checking job boards' : 'Checking job boards and your inbox') : r.failed ? 'Refresh failed: see data/refresh.log' : r.at ? `Jobs refreshed ${ago(r.at)} · ${bits}` : 'Jobs not refreshed yet';
+  const bits = r.at ? [`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, r.replies ? `${r.replies} ${r.replies === 1 ? 'reply' : 'replies'}` : '',
+    r.fixed ? `${r.fixed} ${r.fixed === 1 ? 'fix' : 'fixes'} in waiting applications` : ''].filter(Boolean).join(' · ') : '';
+  cap.textContent = r.running ? (ACCTS && ACCTS.demo ? 'Checking job boards, then a self-check' : 'Checking job boards and your inbox, then a self-check') : r.failed ? 'Refresh failed: see data/refresh.log' : r.at ? `Jobs refreshed ${ago(r.at)} · ${bits}` : 'Jobs not refreshed yet';
   return r;
 }
 // Update app: the newest version, then the server starts again and the page reloads on it (the button used most)
@@ -458,7 +459,7 @@ async function refreshJobs() {
     const r = await showRefresh(); if (r.running) return;
     clearInterval(window._rp);
     if (r.failed) return toast('Refresh failed');
-    toast([`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, `${r.replies || 0} new ${r.replies === 1 ? 'reply' : 'replies'}`].join(' · '));
+    toast([`${r.new} new ${r.new === 1 ? 'job' : 'jobs'}`, `${r.replies || 0} new ${r.replies === 1 ? 'reply' : 'replies'}`, `${r.fixed || 0} ${r.fixed === 1 ? 'fix' : 'fixes'} in waiting applications`].join(' · '));
     if (r.update_error) toast(r.update_error);
     if (r.restarting) {                      // the server is starting again on the new code: wait for it, then reload
       $('#refresh-cap').textContent = 'Restarting on the new version…';

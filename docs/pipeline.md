@@ -298,7 +298,7 @@ Answer this application form. Anything only {first_name} can answer goes in need
 **Added when it applies** (`prompts.WHY_US`)
 
 ```text
-This is a cover letter or why-us answer: follow the brief's shape for them. Draw the company's culture, values and stated near-term direction from the posting and the mission notes, in their own words; never describe their product. Never open with the candidate or 'I am writing'.
+This is a cover letter or why-us answer: follow the brief's shape for them. Plain words and short sentences; open with why the candidate wants this role, close with the fit and their confidence stated outright. Draw the company's culture and stated direction from the posting and the mission notes; never describe their product. No 'I am writing'.
 ```
 
 > A question you answered before is answered again from Saved answers. Arbitration, certifications and export-control declarations always stay yours. Why-us questions add the WHY_US rule: the company's culture and the role, never a tour of their product.
@@ -322,7 +322,7 @@ This is a cover letter or why-us answer: follow the brief's shape for them. Draw
 |---|---|---|
 | PNG | out/screens/app<id>.png (the filled form itself; nothing submitted) | **You review** |
 
-> Reads each radio group's own question, keeps every option, maps answers onto the form's wording (countries, opt-ins). A required field it can't fill becomes a question for you.
+> Reads each radio group's own question, keeps every option, maps answers onto the form's wording (countries, opt-ins, the office nearest you). A required field or choice it can't fill becomes a question for you. Self-check (agent/doctor.py, on every Refresh): when this code changes, every waiting form is filled again on today's rules; failed submits come back to review; duplicate roles are withdrawn.
 
 ### Cover letter
 
@@ -344,7 +344,7 @@ This is a cover letter or why-us answer: follow the brief's shape for them. Draw
 **Prompt** (`prompts.WHY_US`)
 
 ```text
-This is a cover letter or why-us answer: follow the brief's shape for them. Draw the company's culture, values and stated near-term direction from the posting and the mission notes, in their own words; never describe their product. Never open with the candidate or 'I am writing'.
+This is a cover letter or why-us answer: follow the brief's shape for them. Plain words and short sentences; open with why the candidate wants this role, close with the fit and their confidence stated outright. Draw the company's culture and stated direction from the posting and the mission notes; never describe their product. No 'I am writing'.
 ```
 
 > Any 'why us', 'why this role' or cover-letter question. When the employer wants your own first draft, the card says so and waits. A [YOUR ANSWER] blank anywhere keeps Approve off.

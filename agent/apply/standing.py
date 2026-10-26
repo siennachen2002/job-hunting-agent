@@ -54,15 +54,16 @@ def _gender_words(g: str) -> tuple[str, ...]:
     return {"woman": ("female", "woman", "women"), "man": ("male", "man", "men"), "non-binary": ("non-binary", "nonbinary", "non binary")}.get(g.lower(), (g.lower(),))
 
 
+SELF_ID = re.compile(r"veteran|disabilit|gender|\brace\b|ethnic|hispanic|latin[oax]|pronoun|sexual orientation|transgender", re.I)
 LEGAL = re.compile(r"arbitrat|certify|attest|export control|export[- ]control|bound by|background check|criminal|perjury|true and (complete|correct)", re.I)
 
 
 def simple_answer(label: str) -> str | None:
     """Plain questions answered from the standing answers, then preferences.yaml simple_answers."""
     s, l = _sa(), (label or "")
-    if re.search(r"password", l, re.I):
-        return None   # "Website Password" is not the website
-    if LEGAL.search(l):
+    if re.search(r"password", l, re.I) and not re.search(r"include (a |the |any )?password|password(s)? (if|when|where)", l, re.I):
+        return None   # "Website Password" is not the website ("Website (include password if needed)" still is)
+    if LEGAL.search(l) and not SELF_ID.search(l):
         return None   # arbitration, certifications, export control, background checks: always the person's own decision
     rules = [
         (r"undergrad(uate)? gpa|bachelor.*gpa", s.get("undergrad_gpa")),

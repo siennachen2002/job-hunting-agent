@@ -118,7 +118,8 @@ NODES = [
                 ("PDF", "the résumé", "tailor"),
                 ("Web page", "the employer's form, in the agent's browser profile (data/browser)", "")],
          gives=[("PNG", "out/screens/app<id>.png (the filled form itself; nothing submitted)", "review")],
-         note="Reads each radio group's own question, keeps every option, maps answers onto the form's wording (countries, opt-ins). A required field it can't fill becomes a question for you."),
+         note="Reads each radio group's own question, keeps every option, maps answers onto the form's wording (countries, opt-ins, the office nearest you). A required field or choice it can't fill becomes a question for you. "
+              "Self-check (agent/doctor.py, on every Refresh): when this code changes, every waiting form is filled again on today's rules; failed submits come back to review; duplicate roles are withdrawn."),
     dict(id="cover", step="03", name="Cover letter", lane="agent", runs="model", prompt="WHY_US",
          schema="FormAnswers", code="agent/llm.py · answer_form (why-us and cover-letter questions) · agent/cover.py",
          reads=[("SQLite", "posting + research notes", "rank"),
