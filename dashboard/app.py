@@ -32,6 +32,75 @@ HERE = Path(__file__).parent
 app = FastAPI(title="Job Hunter Agent")
 
 
+# ---- phone: this Mac opens freely; any other device (your phone over Tailscale) needs your private link once ----------
+from fastapi import Request
+from fastapi.responses import RedirectResponse, PlainTextResponse
+LOCAL = {"127.0.0.1", "::1", "localhost"}
+
+
+@app.middleware("http")
+async def phone_key(request: Request, call_next):
+    if (request.client.host if request.client else "") in LOCAL:
+        return await call_next(request)
+    key = os.getenv("JHA_ACCESS_KEY", "")
+    given = request.query_params.get("key")
+    if key and given == key:   # the private link: remember this phone, then drop the key from the address bar
+        r = RedirectResponse(request.url.path or "/", status_code=303)
+        r.set_cookie("jha_key", key, max_age=400 * 86400, httponly=True, samesite="lax")
+        return r
+    if key and request.cookies.get("jha_key") == key:
+        return await call_next(request)
+    return PlainTextResponse("Open this with your private phone link (Setup → Use it on your phone, on your Mac).", status_code=403)
+
+
+def _tailscale_ip() -> str:
+    import shutil, subprocess
+    for exe in (shutil.which("tailscale"), "/Applications/Tailscale.app/Contents/MacOS/Tailscale"):
+        if exe and Path(exe).exists():
+            try:
+                out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=5).stdout.split()
+                if out:
+                    return out[0]
+            except Exception:
+                pass
+    return ""
+
+
+@app.get("/api/phone")
+def phone():
+    """What the Setup page's phone step shows: is Tailscale up, is the server reachable, the private link."""
+    ip = _tailscale_ip()
+    listening = os.getenv("JHA_HOST", "127.0.0.1") != "127.0.0.1"
+    key = os.getenv("JHA_ACCESS_KEY", "")
+    port = int(os.getenv("JHA_PORT", "8765"))
+    return {"tailscale": bool(ip), "listening": listening, "has_key": bool(key),
+            "link": f"http://{ip}:{port}/?key={key}" if ip and key and listening else ""}
+
+
+@app.get("/manifest.webmanifest")
+def manifest(request: Request):
+    """Add to Home Screen: opens full screen like an app. A home-screen app keeps its own cookies on iPhone,
+    so its start address carries the private key (only devices already let in ever see this)."""
+    key = os.getenv("JHA_ACCESS_KEY", "")
+    local = (request.client.host if request.client else "") in LOCAL
+    return JSONResponse({"name": "Job Hunter Agent", "short_name": "Job Hunter", "display": "standalone",
+                         "start_url": "/" if local or not key else f"/?key={key}", "scope": "/",
+                         "background_color": "#FAF9F7", "theme_color": "#FAF9F7",
+                         "icons": [{"src": "/static/icon.png", "sizes": "256x256", "type": "image/png"},
+                                   {"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml"}]},
+                        media_type="application/manifest+json")
+
+
+@app.post("/api/phone/enable")
+def phone_enable():
+    """Make a private key, listen beyond this Mac (behind the key), then restart this server."""
+    import secrets
+    from agent.setup import write_env
+    write_env({"JHA_ACCESS_KEY": os.getenv("JHA_ACCESS_KEY") or secrets.token_urlsafe(18), "JHA_HOST": "0.0.0.0"})
+    _restart_soon()
+    return {"ok": True, "restarting": True}
+
+
 def rows(q, *args):
     with db.tx() as con:
         return [dict(r) for r in con.execute(q, args).fetchall()]
@@ -615,6 +684,41 @@ def prepare_job(job_id: int):
     return {"ok": True}
 
 
+class _Queued:
+    """A job picked for a batch prepare that hasn't started yet: shows as preparing."""
+    def poll(self):
+        return None
+
+
+class PrepareMany(BaseModel):
+    job_ids: list[int]
+
+
+@app.post("/api/jobs/prepare-many")
+def prepare_many(body: PrepareMany):
+    """Prepare several jobs one after another (never in parallel: two browsers on one profile crash)."""
+    import subprocess, sys
+    from agent.setup_answers import missing
+    if missing():
+        return {"ok": False, "msg": "Finish your standing answers first (Storybook → Standing answers)."}
+    ids, skipped = [], []
+    for jid in body.job_ids:
+        j = rows("SELECT * FROM jobs WHERE id=?", jid)
+        m = _match(dict(j[0]))[0] if j else None
+        if not j or (m is not None and m < MIN_MATCH) or _prep_state(jid) == "running":
+            skipped.append(jid); continue
+        PREP[jid] = _Queued(); ids.append(jid)
+
+    def run():
+        for jid in ids:
+            log = HERE.parent / "data" / f"prepare-{jid}.log"
+            PREP[jid] = subprocess.Popen([sys.executable, "-m", "agent.run", "compose", str(jid)], cwd=str(HERE.parent),
+                                         stdout=open(log, "w"), stderr=subprocess.STDOUT)
+            PREP[jid].wait()
+    _th.Thread(target=run, daemon=True).start()
+    return {"ok": True, "started": len(ids), "skipped": len(skipped)}
+
+
 def _prep_state(job_id):
     proc = PREP.get(job_id)
     if proc is None or not hasattr(proc, "poll"):
@@ -701,34 +805,67 @@ TELL = {}
 STYLE_ASK = re.compile(r"\b(style|tone|formatting|how my résumé is written|write like|written like|like \w+ (does|do|did|writes|wrote))\b", re.I)
 
 
+CHAT: dict = {}   # what the chat box is still working on: {"fill": thread, "add": True, "learn": True}
+
+
+def _fill_standing(text: str) -> None:
+    """Background: turn what was said or dropped into standing answers, then say what was filled and what is still blank."""
+    from agent import setup_answers as sa, chat
+    labels = {q[1]: q[2] for q in sa.QUESTIONS}
+    try:
+        changed = sa.fill_from(text)
+        left = sa.missing()
+        msg = (f"Filled {len(changed)} standing answer{'s' if len(changed) != 1 else ''}: {', '.join(labels[k] for k in changed)}." if changed
+               else "Nothing in that answers a standing question.")
+        msg += (f" Still blank: {', '.join(left)}. Tell me those, or fill them in below." if left else " All required ones are done.")
+        chat.add("agent", msg)
+    except Exception as e:
+        chat.add("agent", f"I couldn't fill the standing answers: {str(e)[:160]}")
+    CHAT.pop("fill", None)
+
+
 @app.post("/api/agent/tell")
 def tell(t: Tell):
-    """The Storybook chat box. With files: one file plus a style request rewrites the storybook in its style; anything
-    else (old résumés, reference letters, papers, notes) is read and its facts added to the storybook. Without files:
-    save the note and propose patches in a separate process; they come back as suggested changes to approve."""
-    import base64, subprocess, sys
+    """The Storybook chat box. Everything said or dropped also fills the standing answers (in the background).
+    With files: one file plus a style request rewrites the storybook in its style; anything else (old résumés, reference
+    letters, papers, notes) is read and its facts added to the storybook. Without files: save the note and propose patches
+    in a separate process; they come back as suggested changes to approve."""
+    import base64, subprocess, sys, threading
+    from agent import chat
     files = t.files or ([Upload(name=t.name or "reference.txt", data_b64=t.data_b64)] if t.data_b64 else [])
+    if not t.text.strip() and not files:
+        return {"ok": False, "msg": "Write something first."}
+    chat.add("you", t.text.strip(), [u.name for u in files])
     if len(files) == 1 and STYLE_ASK.search(t.text):
+        chat.add("agent", f"Rewriting your storybook in the style of {files[0].name}. Progress shows below.")
+        CHAT["add"] = True
         return learn_from(Reference(name=files[0].name, data_b64=files[0].data_b64, prompt=t.text))
+    texts = []
     if files:
-        from agent import config, setup_answers
+        from agent import config
         from agent.intake import read_any
-        from agent.storybook import start_add_from
         folder = config.PROFILE_DIR / "uploads"; folder.mkdir(exist_ok=True)
-        texts = []
         for u in files:
             path = folder / re.sub(r"[^A-Za-z0-9._-]+", "_", u.name)[:80]
             path.write_bytes(base64.b64decode(u.data_b64.split(",")[-1]))
             texts.append((u.name, read_any(path)))
         if not any(x.strip() for _, x in texts):
+            chat.add("agent", "I couldn't read text from those files. Try PDF, DOCX, text or audio.")
             return {"ok": False, "msg": "Couldn't read text from those files. Try PDF, DOCX, text or audio."}
+    said = "\n\n".join([t.text] + [f"--- {n} ---\n{x[:8000]}" for n, x in texts if x.strip()])
+    if "fill" not in CHAT:
+        CHAT["fill"] = threading.Thread(target=_fill_standing, args=(said,), daemon=True); CHAT["fill"].start()
+    if files:
+        from agent import setup_answers
+        from agent.storybook import start_add_from
         sa = setup_answers.load()
         person = " ".join(x for x in (sa.get("legal_first"), sa.get("legal_last")) if x)
         if sa.get("preferred_name"):
             person += f" (goes by {sa['preferred_name']})"
-        return {"ok": start_add_from([x for x in texts if x[1].strip()], t.text, person), "msg": "started"}
-    if not t.text.strip():
-        return {"ok": False, "msg": "Write something first."}
+        ok = start_add_from([x for x in texts if x[1].strip()], t.text, person)
+        chat.add("agent", f"Reading {files[0].name if len(files) == 1 else f'{len(files)} files'}: adding what's in {'it' if len(files) == 1 else 'them'} to your storybook, and filling your standing answers.")
+        CHAT["add"] = True
+        return {"ok": ok, "msg": "started"}
     from agent.learn import add_feedback
     with db.tx() as con:
         add_feedback(con, t.text)
@@ -736,7 +873,35 @@ def tell(t: Tell):
     if not (proc and proc.poll() is None):
         TELL["proc"] = subprocess.Popen([sys.executable, "-m", "agent.run", "learn"], cwd=str(HERE.parent),
                                         stdout=open(HERE.parent / "data" / "learn.log", "w"), stderr=subprocess.STDOUT)
+    chat.add("agent", "Got it. Filling any standing answers that covers, and thinking about what else to change; suggestions show below.")
+    CHAT["learn"] = True
     return {"ok": True, "msg": "thinking"}
+
+
+@app.get("/api/chat")
+def chat_history():
+    """The chat box's history. Reports work that finished since (storybook additions, suggestions) as agent messages."""
+    from agent import chat
+    from agent.storybook import STATUS
+    if CHAT.get("add") and STATUS.get("state") != "running":
+        CHAT.pop("add")
+        n = len(STATUS.get("changes") or [])
+        chat.add("agent", f"Storybook updated: {n} change{'s' if n != 1 else ''}." if STATUS.get("state") == "done" else
+                 f"Stopped adding to your storybook{': ' + str(STATUS.get('error'))[:160] if STATUS.get('error') else '.'}")
+    proc = TELL.get("proc")
+    if CHAT.get("learn") and not (proc and proc.poll() is None):
+        CHAT.pop("learn")
+        n = len(rows("SELECT id FROM proposals WHERE status='pending'")) if rows("SELECT name FROM sqlite_master WHERE name='proposals'") else 0
+        if n:
+            chat.add("agent", f"{n} suggested change{'s' if n != 1 else ''} below: apply or dismiss each.")
+    return {"messages": chat.load(), "working": bool(CHAT)}
+
+
+@app.post("/api/chat/clear")
+def chat_clear():
+    from agent import chat
+    chat.clear()
+    return {"ok": True}
 
 
 @app.get("/api/agent/tell-status")
@@ -772,4 +937,4 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 if __name__ == "__main__":
     import uvicorn
     import os
-    uvicorn.run("dashboard.app:app", host="127.0.0.1", port=int(os.getenv("JHA_PORT", "8765")), reload=False)
+    uvicorn.run("dashboard.app:app", host=os.getenv("JHA_HOST", "127.0.0.1"), port=int(os.getenv("JHA_PORT", "8765")), reload=False)

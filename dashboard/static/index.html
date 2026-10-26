@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job Hunter Agent</title>
 <link rel="icon" href="/static/favicon.png" type="image/png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Job Hunter">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FAF9F7">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -100,6 +107,20 @@
   .queue { border-right:1px solid var(--line); overflow:auto; background:color-mix(in srgb, var(--sunk) 35%, var(--surface)); }
   .qi { all:unset; box-sizing:border-box; width:100%; display:flex; gap:12px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line2); cursor:pointer; }
   .qi:hover { background:var(--hover); }
+  .qrow { display:flex; align-items:stretch; border-bottom:1px solid var(--line2); }
+  .qrow .qi { border-bottom:0; padding-left:4px; width:auto; flex:1; min-width:0; }
+  .qrow.on { background:var(--surface); box-shadow:inset 3px 0 0 var(--red); }
+  .qrow.on .qi.on { box-shadow:none; }
+  .ck { display:flex; align-items:center; padding:0 6px 0 16px; cursor:pointer; }
+  .ck input { width:16px; height:16px; margin:0; accent-color:var(--red); cursor:pointer; }
+  .bulk { position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:8px; padding:10px 16px 10px 0; background:color-mix(in srgb, var(--sunk) 35%, var(--surface)); border-bottom:1px solid var(--line); font-size:13px; color:var(--mute); }
+  .bulk .btn { margin-left:auto; }
+  .pstep { display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--line2); font-size:14px; }
+  .pstep .num { flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:600; background:var(--sunk); color:var(--mute); }
+  .pstep.done .num { background:var(--green); color:#fff; }
+  .pstep .srow { margin-top:8px; }
+  .qr { margin:12px 0 8px; } .qr img, .qr canvas { border:8px solid #fff; border-radius:8px; }
+  .plink { display:flex; gap:8px; align-items:center; flex-wrap:wrap; } .plink code { font-family:var(--mono); font-size:12px; background:var(--sunk); padding:4px 8px; border-radius:6px; word-break:break-all; }
   .qi.on { background:var(--surface); box-shadow:inset 3px 0 0 var(--red); }
   .qi .t { flex:1; min-width:0; }
   .qi .c { font-size:12.5px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -181,6 +202,20 @@
   .composer .try { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 12px; }
   .pill { all:unset; cursor:pointer; font-size:13px; padding:5px 11px; border:1px solid var(--line); border-radius:999px; color:var(--ink2); background:var(--surface); transition:all .12s; }
   .pill:hover { border-color:var(--orange); color:var(--orange); background:var(--orange-soft); }
+  .chat-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; } .chat-h h2 { margin:0; } .chat-h .lk { font-size:12.5px; background:none; border:0; cursor:pointer; }
+  .chat { display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto; padding:4px 2px 12px; border-bottom:1px solid var(--line2); margin-bottom:6px; }
+  .msg { max-width:85%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
+  .msg.you { align-self:flex-end; background:var(--ink); color:var(--surface); border-bottom-right-radius:4px; }
+  .msg.agent { align-self:flex-start; background:var(--sunk); color:var(--ink); border-bottom-left-radius:4px; }
+  .msg .mf { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px; } .msg.you .attached { background:color-mix(in srgb, var(--surface) 18%, transparent); color:inherit; }
+  .msg.typing { display:flex; gap:4px; padding:12px 14px; } .msg.typing span { width:6px; height:6px; border-radius:50%; background:var(--mute); animation:blink 1.2s infinite; }
+  .msg.typing span:nth-child(2) { animation-delay:.2s; } .msg.typing span:nth-child(3) { animation-delay:.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
+  .composer.chatting textarea { min-height:56px; }
+  .field.blank.req input, .field.blank.req select { border-color:color-mix(in srgb, var(--orange) 60%, var(--line)); background:color-mix(in srgb, var(--orange) 5%, var(--surface)); }
+  .field .nf { margin-left:8px; font-size:11.5px; font-weight:500; color:var(--orange); }
+  .field.just input, .field.just select { border-color:var(--green); background:color-mix(in srgb, var(--green) 8%, var(--surface)); transition:background 1s; }
+  .ndot { width:8px; height:8px; border-radius:50%; background:var(--orange); margin-left:auto; }
   .composer .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; border-top:1px solid var(--line2); padding-top:10px; }
   .attached { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink2); background:var(--sunk); border-radius:8px; padding:4px 6px 4px 9px; max-width:220px; }
   .attached span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -384,6 +419,7 @@ async function skip(id) { await post(`/api/jobs/${id}/skip`); sel[sub] = null; r
 function watchPrep() { clearInterval(poll); poll = setInterval(async () => { const t = await api('/api/board?tab=todo'); if (!t.some(x => x.preparing === 'running')) { clearInterval(poll); render(); } }, 3000); }
 
 let sel = {review: null, todo: null, applied: null}, editing = false, mobileOpen = false;
+const prepPick = new Set();   // Not started: jobs ticked for Prepare selected
 const keyOf = c => sub === 'todo' ? c.job_id : c.app_id;
 const PIN = '<svg class="i" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const CASH = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>';
@@ -411,7 +447,26 @@ function queueItem(c) {
   const st = sub === 'review' ? (needs ? `<div class="st o"><span class="dot"></span>${needs} ${needs === 1 ? 'question' : 'questions'} for you</div>` : `<div class="st r"><span class="dot"></span>Ready to approve</div>`)
     : sub === 'applied' ? appliedLine(c)
     : c.preparing === 'running' ? `<div class="st o"><span class="spin"></span>Preparing…</div>` : (c.location ? `<div class="st" style="display:block">${esc(c.location)}</div>` : '');
-  return `<button class="qi ${keyOf(c) === sel[sub] ? 'on' : ''}" onclick="pickJob(${keyOf(c)})">${mono(c.company)}<div class="t"><div class="c">${esc(c.company)}</div><div class="ti">${esc(c.title)}</div>${st}</div>${ring(c, true)}</button>`;
+  const item = `<button class="qi ${keyOf(c) === sel[sub] ? 'on' : ''}" onclick="pickJob(${keyOf(c)})">${mono(c.company)}<div class="t"><div class="c">${esc(c.company)}</div><div class="ti">${esc(c.title)}</div>${st}</div>${ring(c, true)}</button>`;
+  if (sub !== 'todo') return item;
+  const busy = c.preparing === 'running';
+  return `<div class="qrow ${keyOf(c) === sel[sub] ? 'on' : ''}"><label class="ck" title="Select for Prepare selected"><input type="checkbox" ${prepPick.has(c.job_id) ? 'checked' : ''} ${busy ? 'disabled' : ''} onchange="togglePick(${c.job_id}, this.checked)"></label>${item}</div>`;
+}
+function togglePick(id, on) { on ? prepPick.add(id) : prepPick.delete(id); bulkBar(); }
+function pickAll(on) { document.querySelectorAll('.qrow .ck input:not(:disabled)').forEach(i => { i.checked = on; togglePick(+i.getAttribute('onchange').match(/\d+/)[0], on); }); }
+function bulkBar() {
+  const n = prepPick.size, b = $('#bulk-go'), a = $('#bulk-all');
+  if (b) { b.disabled = !n; b.textContent = n ? `Prepare selected (${n})` : 'Prepare selected'; }
+  if (a) { const boxes = [...document.querySelectorAll('.qrow .ck input:not(:disabled)')]; a.checked = boxes.length > 0 && boxes.every(i => i.checked); }
+}
+async function prepPicked(b) {
+  const ids = [...prepPick]; if (!ids.length) return;
+  b.innerHTML = '<span class="spin"></span>Starting…'; b.disabled = true;
+  const r = await post('/api/jobs/prepare-many', {job_ids: ids});
+  if (r && r.ok === false) { alert(r.msg); return render(); }
+  prepPick.clear();
+  toast(`Preparing ${r.started} ${r.started === 1 ? 'job' : 'jobs'}, one at a time${r.skipped ? ` (${r.skipped} skipped: below a 50% match or already preparing)` : ''}. Each one moves to Waiting for review when it's ready.`);
+  render(); watchPrep();
 }
 function pickJob(k) { sel[sub] = k; editing = false; mobileOpen = true; render(); }
 
@@ -478,18 +533,20 @@ async function renderJobs(p) {
   if (!list.some(c => keyOf(c) === sel[sub])) sel[sub] = list.length ? keyOf(list[0]) : null;
   const cur = list.find(c => keyOf(c) === sel[sub]);
   const sa = await api('/api/standing');
-  const setup = sa.missing.length ? `<div class="banner" style="border-left-color:var(--red)">${I.alert}<div><b>Before your agent applies anywhere:</b> answer the standing questions (name, work authorization, relocation, self-identification…). ${sa.missing.length} left.
+  const setup = sa.missing.length ? `<div class="banner" style="border-left-color:var(--red)">${I.alert}<div><b>Before your agent applies anywhere:</b> answer the standing questions (name, work authorization, relocation, self-identification…).
     <a class="lk" onclick="tab='storybook';pbFile='@standing';render()">Answer them now</a></div></div>` : '';
-  const banner = setup + (sub === 'todo' && !cfg.jev ? `<div class="banner">${I.alert}<div>Jev isn't connected, so these are ranked by keyword match. Add <code>TYPESAFE_API_KEY</code> to <code>.env</code> to rate every posting with Jev.</div></div>` : '');
+  const banner = setup + (sub === 'todo' && !cfg.jev ? `<div class="banner">${I.alert}<div>Jev isn't connected, so Claude Code (your login, no API) rates postings when you press Refresh; ones it hasn't rated yet show a keyword match. <a class="lk" onclick="tab='setup';setupOpen='keys';render()">Add your Jev key in Setup → API keys</a> to rate every posting with Jev.</div></div>` : '');
   const empty = Object.values(lists).every(l => !l.length) ? 'No jobs yet. Press Refresh at the bottom left to find some.'
     : {review: 'Nothing is waiting for you.', todo: 'Nothing waiting to start.', applied: 'Nothing sent yet.'}[sub];
   const keepScroll = $('.queue') ? $('.queue').scrollTop : 0;
   p.innerHTML = `<div class="ph"><div><h1>Job applications</h1></div>
       <div class="seg" style="margin:0">${Object.keys(names).map(k => `<button class="${k === sub ? 'on' : ''}" onclick="sub='${k}';editing=false;mobileOpen=false;render()">${names[k]}<span class="n">${lists[k].length}</span></button>`).join('')}</div></div>
     ${banner}
-    ${list.length ? `<div class="split ${mobileOpen ? 'open' : ''}"><div class="queue">${sub === 'applied' ? appliedQueue(list) : list.map(queueItem).join('')}</div>
+    ${list.length ? `<div class="split ${mobileOpen ? 'open' : ''}"><div class="queue">${sub === 'todo' ? `<div class="bulk"><label class="ck"><input type="checkbox" id="bulk-all" onchange="pickAll(this.checked)"></label><span>Select all</span>
+        <button class="btn primary sm" id="bulk-go" disabled onclick="prepPicked(this)">Prepare selected</button></div>` : ''}${sub === 'applied' ? appliedQueue(list) : list.map(queueItem).join('')}</div>
       <section class="detail" id="detail">${cur ? (sub === 'todo' ? detailTodo(cur) : detailApp(cur, sub === 'applied')) : ''}</section></div>` : `<div class="empty">${empty}</div>`}`;
   if ($('.queue')) $('.queue').scrollTop = keepScroll;
+  if (sub === 'todo') { for (const id of [...prepPick]) if (!td.some(x => x.job_id === id)) prepPick.delete(id); bulkBar(); }
   if (sub === 'todo' && cur) api(`/api/jobs/${cur.job_id}/description`).then(d => { const el = $('#jd'); if (el) el.textContent = d.text || 'No description saved.'; });
   if (td.some(x => x.preparing === 'running')) watchPrep();
 }
@@ -513,21 +570,21 @@ function appliedQueue(list) {
     <div class="qh">No reply yet<span>${n('waiting')}</span></div>${items('waiting')}`;
 }
 
+const FILLED = new Set();   // standing answers the chat box just filled: highlighted once
 function standingForm(sa) {
   const v = sa.values || {}; let sec = '', html = '';
   for (const q of sa.questions) {
     if (q.section !== sec) { sec = q.section; html += `${html ? '</div>' : ''}<h3 style="margin:26px 0 10px">${esc(sec)}</h3><div class="fgrid">`; }
-    const val = v[q.key] || '';
+    const val = v[q.key] || '', blank = !String(val).trim();
     const input = q.kind === 'select'
       ? `<select data-k="${q.key}"><option value="">Choose…</option>${q.options.map(o => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
       : `<input type="text" data-k="${q.key}" value="${esc(val)}" placeholder="${esc(q.hint || '')}">`;
-    html += `<div class="field ${q.kind === 'text' && q.hint && q.hint.length > 40 ? 'wide' : ''}"><label>${esc(q.label)}${q.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>${input}
+    html += `<div class="field ${q.kind === 'text' && q.hint && q.hint.length > 40 ? 'wide' : ''} ${blank ? (q.required ? 'blank req' : 'blank') : ''} ${FILLED.has(q.key) ? 'just' : ''}"><label>${esc(q.label)}${q.required ? ' <span style="color:var(--red)">*</span>' : ''}${blank && q.required ? '<span class="nf">Not filled yet</span>' : ''}</label>${input}
       ${q.kind === 'select' && q.hint ? `<div style="font-size:12px;color:var(--mute);margin-top:4px">${esc(q.hint)}</div>` : ''}</div>`;
   }
   return `<h1 style="margin-top:0">Standing answers</h1>
-    <p>The questions almost every application asks. Answer them once; the agent fills them on every form and never asks again.
-    Starred ones are required: until they are done, the agent prepares and submits nothing. They stay on this computer.</p>
-    ${sa.missing.length ? `<div class="banner">${I.alert}<div><b>${sa.missing.length} left:</b> ${sa.missing.map(esc).join(', ')}</div></div>` : ''}
+    <p>The questions almost every application asks. You don't need to fill this in: say things in the box above or drop your résumé, and
+    these fill themselves. Starred ones are required before the agent applies anywhere; the ones still blank are marked. They stay on this computer.</p>
     ${html}</div><div class="edit-f" style="margin-top:22px"><button class="btn primary" onclick="saveStanding(this)">${I.check}Save answers</button></div>`;
 }
 async function saveStanding(b) {
@@ -537,7 +594,8 @@ async function saveStanding(b) {
 }
 
 async function renderStorybook(p) {
-  const [files, vs, st, props, tell] = await Promise.all([api('/api/playbook'), api('/api/storybook/versions'), api('/api/storybook/learn-status'), api('/api/proposals'), api('/api/agent/tell-status')]);
+  const [files, vs, st, props, tell, ch] = await Promise.all([api('/api/playbook'), api('/api/storybook/versions'), api('/api/storybook/learn-status'), api('/api/proposals'), api('/api/agent/tell-status'), api('/api/chat')]);
+  CHATN = ch.messages.length;
   const fs = files.filter(f => !f.name.startsWith('_'));
   const sa = await api('/api/standing');
   if (!pbFile) pbFile = sa.missing.length ? '@standing' : (fs[0] && fs[0].name);
@@ -551,8 +609,9 @@ async function renderStorybook(p) {
   const label = f => f.replace(/^\d+-/, '').replace(/\.md$/, '').replace(/-/g, ' ').replace(/^readme$/i, 'Sources');
   p.innerHTML = `<div class="ph"><div><h1>Storybook</h1><p class="sub">Everything your agent knows about you. Tell it what to change.</p></div></div>
     <div class="tell">
-      <div class="composer"><h2>What should your agent know?</h2>
-        <textarea id="ask" placeholder="Type, or tap the mic and talk."></textarea>
+      <div class="composer ${ch.messages.length || SENDING ? 'chatting' : ''}">${ch.messages.length || SENDING ? `<div class="chat-h"><h2>Your agent</h2><button class="lk" onclick="clearChat()">Clear</button></div>
+        <div class="chat" id="chat">${ch.messages.map(bubble).join('')}${SENDING ? bubble(SENDING) : ''}${ch.working || SENDING ? '<div class="msg agent typing"><span></span><span></span><span></span></div>' : ''}</div>` : '<h2>What should your agent know?</h2>'}
+        <textarea id="ask" placeholder="Tell it about you, or drop your résumé: your storybook and standing answers fill themselves. Type, or tap the mic and talk."></textarea>
         <div class="try">${examples.map(x => `<button class="pill" onclick="useEx('${x}')">${x}?</button>`).join('')}</div>
         <div class="bar">${picked.map((f, i) => `<span class="attached">${I.clip}<span>${esc(f.name)}</span><button onclick="picked.splice(${i},1);render()" title="Remove">${I.x}</button></span>`).join('')}
           <button class="mic" id="mic" title="Speak" onclick="speak()">${I.mic}</button>
@@ -566,7 +625,7 @@ async function renderStorybook(p) {
     <div class="reader">
       <nav class="toc"><div class="h">Required</div>
         <button class="${pbFile === '@standing' ? 'on' : ''}" onclick="pbFile='@standing';render()" style="display:flex;align-items:center;gap:6px">Standing answers
-          ${sa.missing.length ? `<span class="badge" title="${sa.missing.length} left">${sa.missing.length}</span>` : `<span style="color:var(--green);margin-left:auto">${I.check}</span>`}</button>
+          ${sa.missing.length ? `<span class="ndot" title="Some required answers are still blank"></span>` : `<span style="color:var(--green);margin-left:auto">${I.check}</span>`}</button>
         <div class="h" style="margin-top:10px">Files</div>${fs.map(f => `<button class="${f.name === pbFile ? 'on' : ''}" onclick="pbFile='${f.name}';render()">${esc(label(f.name))}</button>`).join('')}
         <div class="back"><button ${vs.length ? '' : 'disabled'} onclick="back()" title="${vs.length ? vs.length + ' saved version(s)' : 'No earlier version yet'}">${I.undo}Back to previous version</button></div></nav>
       <article class="md">${pbFile === '@standing' ? standingForm(sa) : (window.marked ? marked.parse(doc.text) : '<pre>' + esc(doc.text) + '</pre>')}</article>
@@ -577,6 +636,9 @@ async function renderStorybook(p) {
   drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); pick(e.dataTransfer.files); };
   file.onchange = () => pick(file.files);
   if (draft) $('#ask').value = draft;
+  const cl = $('#chat'); if (cl) cl.scrollTop = cl.scrollHeight;
+  $('#ask').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) tellAgent(); };
+  if (ch.working) watchChat();
   $('#ask').oninput = e => { draft = e.target.value; };
   if (tell.thinking) { clearInterval(poll); poll = setInterval(async () => { const t = await api('/api/agent/tell-status'); if (!t.thinking) { clearInterval(poll); if (tab === 'storybook') render(); } }, 3000); }
   if (running) { clearInterval(poll); poll = setInterval(async () => { const s = await api('/api/storybook/learn-status'); if (s.state !== 'running' || tab !== 'storybook') clearInterval(poll); if (tab === 'storybook') render(); }, 2500); }
@@ -587,11 +649,30 @@ async function pick(list) {
   const read = f => new Promise(ok => { const r = new FileReader(); r.onload = () => ok({name: f.name, data_b64: r.result}); r.readAsDataURL(f); });
   picked = picked.concat(await Promise.all(Array.from(list || []).map(read))); render();
 }
+let CHATN = 0, SENDING = null, chatPoll = null;
+const bubble = m => `<div class="msg ${m.role}">${m.files && m.files.length ? `<div class="mf">${m.files.map(f => `<span class="attached">${I.clip}<span>${esc(f)}</span></span>`).join('')}</div>` : ''}${m.text ? `<div class="mt">${esc(m.text)}</div>` : ''}</div>`;
 async function tellAgent() {
   const text = $('#ask').value.trim(); if (!text && !picked.length) return;
-  const res = await post('/api/agent/tell', {text, files: picked}); picked = []; draft = '';
-  if (res && res.ok === false) alert(res.msg); render();
+  const files = picked; SENDING = {role: 'you', text, files: files.map(f => f.name)}; picked = []; draft = ''; render();
+  const res = await post('/api/agent/tell', {text, files}); SENDING = null;
+  if (res && res.ok === false) toast(res.msg);
+  const before = (await api('/api/standing')).values || {};
+  STANDING_BEFORE = before; render(); watchChat();
 }
+let STANDING_BEFORE = null;
+function watchChat() {
+  clearInterval(chatPoll);
+  chatPoll = setInterval(async () => {
+    if (tab !== 'storybook') return clearInterval(chatPoll);
+    const ch = await api('/api/chat');
+    if (ch.messages.length !== CHATN || !ch.working) {
+      if (STANDING_BEFORE) { const now = (await api('/api/standing')).values || {}; for (const k in now) if ((now[k] || '') !== (STANDING_BEFORE[k] || '')) FILLED.add(k); }
+      if (!ch.working) { clearInterval(chatPoll); STANDING_BEFORE = null; setTimeout(() => { FILLED.clear(); }, 4000); }
+      if (!document.activeElement || document.activeElement.id !== 'ask' || !ch.working) render();
+    }
+  }, 2000);
+}
+async function clearChat() { await post('/api/chat/clear'); render(); }
 let rec = null;
 // change one résumé by saying or typing what to change; it is rewritten in the background, then refreshed with a green dot
 const REV = {}, REVV = {}, REVD = {};
@@ -722,11 +803,42 @@ const SETUP_BODY = {
     <p class="hint">No need to sign in to LinkedIn or Indeed: they are never automated. CAPTCHAs and emailed security codes are always yours: when one appears,
     the agent stops and you finish it in its window.</p>
     <div class="srow"><button class="btn primary sm" onclick="post('/api/setup/browser').then(() => toast('The agent\'s browser is opening. Sign in, then close it.'))">Open the agent's browser</button></div>`,
-  jev: st => `<p>Jev (TypeSafe) rates every posting before a model reads it, so ranking is faster and cheaper. Without it, a keyword match ranks them.</p>
-    <div class="frow"><label>TypeSafe API key<input type="password" id="jev-key" autocomplete="off" placeholder="${st.models.keys.TYPESAFE_API_KEY ? 'Saved. Paste a new one to replace it' : 'Paste your key'}"></label></div>
-    <div class="srow"><button class="btn primary sm" onclick="saveSetup({TYPESAFE_API_KEY: $('#jev-key').value})">Save</button>
-      <button class="btn sm" onclick="testSetup('jev', this)">Test</button><span class="res" id="res-jev"></span></div>`,
+  phone: st => { setTimeout(phoneStep, 0); return '<div id="phone-step"><span class="spin"></span></div>'; },
+  keys: st => {
+    const k = st.models.keys, saved = 'Saved. Paste a new one to replace it';
+    const row = (key, label, ph, help) => `<label>${label}<input type="password" id="key-${key}" autocomplete="off" placeholder="${k[key] ? saved : ph}">${help ? `<small class="hint">${help}</small>` : ''}</label>`;
+    return `<p>Every key the agent uses, in one place. They are written to <code>.env</code> on this computer and never shown again; leave a box empty to keep what is saved.</p>
+    <div class="frow">${row('TYPESAFE_API_KEY', 'Jev (TypeSafe) API key', 'Paste your key', 'Rates every posting before a model reads it. Without it, a keyword match ranks them.')}
+      ${row('ANTHROPIC_API_KEY', 'Anthropic API key', 'sk-ant-…', 'Only if your model is Anthropic (Connect a model).')}
+      ${row('JHA_OPENAI_API_KEY', 'OpenAI-compatible server key', 'optional', 'Only if your model server needs one.')}
+      ${row('JHA_MAIL_APP_PASSWORD', 'Mailbox app password', 'abcd efgh ijkl mnop', 'For reading replies; the address is under Connect your application mailbox.')}</div>
+    <div class="srow"><button class="btn primary sm" onclick="saveSetup(Object.fromEntries([...document.querySelectorAll('[id^=key-]')].map(i => [i.id.slice(4), i.value])))">Save</button>
+      <button class="btn sm" onclick="testSetup('jev', this)">Test Jev</button><span class="res" id="res-jev"></span></div>`;
+  },
 };
+async function phoneStep() {
+  const box = $('#phone-step'); if (!box) return;
+  const ph = await api('/api/phone');
+  const step = (n, done, body) => `<div class="pstep ${done ? 'done' : ''}"><span class="num">${done ? I.check : n}</span><div>${body}</div></div>`;
+  box.innerHTML = `<p>Your phone reaches this Mac through <b>Tailscale</b>: a free app that links your own devices privately, at home or on cellular. Nobody else can reach the page, and it also needs your private link.</p>
+    ${step(1, ph.tailscale, `<b>Install Tailscale on this Mac and sign in.</b> <a class="lk" href="https://tailscale.com/download/mac" target="_blank">tailscale.com/download${I.ext}</a>${ph.tailscale ? ' <span class="res ok">Connected</span>' : ''}`)}
+    ${step(2, false, `<b>Install Tailscale on your iPhone</b> from the App Store and sign in with the <b>same account</b>.`)}
+    ${step(3, ph.listening && ph.has_key, `<b>Let your phone in.</b> Makes a private key and lets devices with your link reach this page.
+      <div class="srow">${ph.listening && ph.has_key ? '<span class="res ok">On</span>' : `<button class="btn primary sm" onclick="phoneOn(this)">Turn on</button>`}</div>`)}
+    ${step(4, false, ph.link ? `<b>Open your private link on the phone</b>: scan it with the camera, then in Safari tap Share → <i>Add to Home Screen</i>.
+      <div class="qr" id="phone-qr"></div><div class="plink"><code>${esc(ph.link)}</code><button class="btn sm" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(ph.link))}).then(() => toast('Copied'))">Copy</button></div>
+      <p class="hint">Keep this link to yourself: it opens your applications. This Mac has to be awake with the app open.</p>`
+      : `<b>Open your private link on the phone.</b> It shows here once steps 1 and 3 are done.`)}`;
+  if (ph.link) {
+    if (!window.QRCode) await new Promise(ok => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = ok; sc.onerror = ok; document.head.appendChild(sc); });
+    if (window.QRCode) new QRCode($('#phone-qr'), {text: ph.link, width: 168, height: 168});
+  }
+}
+async function phoneOn(b) {
+  b.innerHTML = '<span class="spin"></span>Turning on…'; b.disabled = true;
+  await post('/api/phone/enable');
+  for (let i = 0; i < 60; i++) { await new Promise(ok => setTimeout(ok, 500)); try { if ((await fetch('/api/config')).ok) { setupOpen = 'phone'; return render(); } } catch (e) {} }
+}
 async function renderSetup(p) {
   const st = SETUP = await api('/api/setup');
   setupBadge(st);

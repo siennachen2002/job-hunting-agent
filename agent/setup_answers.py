@@ -9,6 +9,7 @@ Answers are stored in <profile>/standing.yaml, which stays on the person's machi
 """
 from __future__ import annotations
 import yaml
+from pydantic import BaseModel, Field
 from . import config
 
 DECLINE = "Prefer not to say"
@@ -85,6 +86,44 @@ def save(values: dict) -> dict:
 def missing(values: dict | None = None) -> list[str]:
     v = load() if values is None else values
     return [q[2] for q in QUESTIONS if q[5] and not str(v.get(q[1]) or "").strip()]
+
+
+class _Answer(BaseModel):
+    key: str
+    value: str
+
+
+class _Answers(BaseModel):
+    items: list[_Answer] = Field(description="only the questions the person's words clearly answer")
+
+
+def fill_from(text: str) -> dict[str, str]:
+    """The chat box on the Standing answers page: what the person said (or a résumé they dropped) → answers.
+    Only what the words support; a select gets one of its own options. Saves and returns what changed."""
+    from .providers import structured
+    qs = "\n".join(f"- {k}: {label}" + (f" (one of: {' | '.join(opts)})" if opts else "") + (f" [{hint}]" if hint else "")
+                   for _, k, label, _kind, opts, _req, hint in QUESTIONS)
+    task = ("Fill a job applicant's standing answers from what they wrote. Use only what the text clearly says; never guess "
+            "or infer demographics. For a question with options, reply with exactly one option. Keep their own spelling of names, "
+            f"emails and links. If they decline a self-identification question, answer '{DECLINE}'.\n\nQuestions (key: label):\n{qs}")
+    out = structured([{"type": "text", "text": task}], text, _Answers, effort="low", max_tokens=3000)
+    opts = {q[1]: q[4] for q in QUESTIONS}
+    cur = load(); changed = {}
+    for a in out.items:
+        v = a.value.strip()
+        if a.key not in opts or not v:
+            continue
+        if opts[a.key]:
+            v = next((o for o in opts[a.key] if o.lower() == v.lower()), None)
+            if v is None:
+                continue
+        if a.key in ("website", "linkedin", "github") and not v.startswith(("http://", "https://")):
+            v = "https://" + v   # forms want a full URL
+        if str(cur.get(a.key) or "") != v:
+            changed[a.key] = v
+    if changed:
+        save({**cur, **changed})
+    return changed
 
 
 def require() -> None:

@@ -12,10 +12,13 @@ Taylor Brooks, on real postings at real companies, and sends nothing.
 
 1. **Create it.** Click the account name at the top of the sidebar → **New demo account**. The app restarts on an empty
    account. An orange line on every page says nothing is sent.
-2. **Standing questions.** Setup → *Answer the standing questions* → **Use the sample answers**.
-3. **Tell it everything.** Setup → *Tell it everything* → **Show the sample material** opens `demo/materials`. Drag all
-   four files onto **Drop anything**: a résumé, a reference letter, a capstone paper and a voice memo. The storybook fills
-   with résumé lines, each naming the file it came from.
+2. **Tell it everything.** Setup → *Tell it everything* → **Show the sample material** opens `demo/materials`. Drag all
+   four files onto **Drop anything** (a résumé, a reference letter, a capstone paper and a voice memo), or type in the box
+   above it ("I don't need sponsorship and I'm happy to relocate within the US") and press Send. The box turns into a chat:
+   the agent says what it is doing, the storybook fills with résumé lines, each naming the file it came from, and the
+   standing answers fill themselves. Its last message lists what is still blank; those fields are marked *Not filled yet*.
+3. **The blanks.** Say them in the chat ("Gender and race: prefer not to say, hybrid is fine, not a veteran"), or
+   Setup → *Answer the standing questions* → **Use the sample answers** fills every one at once.
 4. **Find jobs.** Press **Refresh** (bottom left). It reads the public job boards of the companies on the watchlist
    (Greenhouse, Lever, Ashby) and ranks what it finds. About a minute.
 5. **Prepare one.** Job applications → *Not started* → pick a design role → **Prepare**. You get a one-page résumé built

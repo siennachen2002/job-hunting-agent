@@ -101,13 +101,27 @@ def jev_pass(con, limit: int = 5000) -> tuple[int, int]:
 
 
 def score(con, limit: int = 200) -> int:
-    from . import llm
+    """Model scores for unscored postings. Without Jev, Claude Code (your login, never an API key) scores them, 8 per call."""
+    from . import llm, jev
     prefs = config.preferences().get("automation", {})
     q_min = prefs.get("min_score_to_queue", 55)
     n = 0
-    for row in con.execute("SELECT * FROM jobs WHERE status='new' ORDER BY COALESCE(jev_p, kw_score, 0) DESC, discovered_at DESC LIMIT ?", (limit,)).fetchall():
-        job = dict(row)
-        s = llm.score_job(job)
+    rows = [dict(r) for r in con.execute("SELECT * FROM jobs WHERE status='new' ORDER BY COALESCE(jev_p, kw_score, 0) DESC, discovered_at DESC LIMIT ?", (limit,)).fetchall()]
+    cc = {}
+    if not jev.available():
+        for i in range(0, len(rows), 8):
+            try:
+                cc.update(llm.score_jobs_claude_code(rows[i:i + 8]))
+            except Exception as e:   # a batch that came back malformed: those postings one by one, still Claude Code
+                print(f"  claude code batch failed ({str(e)[:80]}); scoring its postings one by one")
+                for r in rows[i:i + 8]:
+                    try:
+                        cc[r["id"]] = llm.score_job(r, tier="claude-code")
+                    except Exception as e2:
+                        print(f"  could not score {r['company']} - {r['title']}: {str(e2)[:80]}")
+        rows = [r for r in rows if r["id"] in cc]
+    for job in rows:
+        s = cc.get(job["id"]) or llm.score_job(job)
         status = "queued" if (s.score >= q_min and s.action != "skip" and not s.hard_blockers) else "skipped"
         db.set_score(con, job["id"], s.score, s.one_line, s.model_dump(), status)
         from .audit import log
@@ -421,6 +435,11 @@ def main(argv=None):
             update = self_update()
             counts = discover(con); prefilter(con)
             new = sum(v[1] for v in counts.values())
+            from . import jev
+            if jev.available():
+                jev_pass(con)
+            else:   # no Jev: Claude Code ranks the new postings, never the API
+                print(f"claude code scored {score(con, config.preferences().get('automation', {}).get('daily_score_limit', 60))}")
             replies = 0
             from .mailbox import configured
             if configured():

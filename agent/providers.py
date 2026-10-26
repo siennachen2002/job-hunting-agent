@@ -104,7 +104,7 @@ def describe() -> dict:
     m, d = spec("model"), spec("draft")
     return {"model": {"label": label(m), "provider": (m or {}).get("provider", ""), "name": (m or {}).get("name", ""), "missing": missing(m)},
             "draft": {"label": label(d), "provider": (d or {}).get("provider", ""), "name": (d or {}).get("name", ""), "missing": missing(d) if d else ""},
-            "keys": {k: bool(os.getenv(k)) for k in ("ANTHROPIC_API_KEY", "JHA_OPENAI_API_KEY", "TYPESAFE_API_KEY")},
+            "keys": {k: bool(os.getenv(k)) for k in ("ANTHROPIC_API_KEY", "JHA_OPENAI_API_KEY", "TYPESAFE_API_KEY", "JHA_MAIL_APP_PASSWORD")},
             "openai_base_url": os.getenv("JHA_OPENAI_BASE_URL", ""), "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "")}
 
 
@@ -173,7 +173,8 @@ CALL = {"anthropic": _anthropic, "claude-code": _claude_code, "ollama": _openai_
 def structured(system_blocks: list[dict], user: str, schema: Type[T], effort: str = "medium",
                max_tokens: int = 8000, tier: str = "model") -> T:
     from . import config  # loads .env
-    s = (spec("draft") if tier == "draft" else None) or spec("model")
+    # tier "claude-code": your Claude Code login, never an API key (ranking when Jev isn't connected)
+    s = {"provider": "claude-code", "name": ""} if tier == "claude-code" else (spec("draft") if tier == "draft" else None) or spec("model")
     if not s or missing(s):
         raise RuntimeError("No model is set up yet: open the dashboard's Setup page, or set JHA_MODEL in .env. " + missing(s))
     return CALL[s["provider"]](system_blocks, user, schema, effort, max_tokens, s)

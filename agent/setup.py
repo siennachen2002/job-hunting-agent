@@ -11,8 +11,10 @@ from . import config
 
 # what the Setup page may write; secrets are never sent back to the page, only whether they are set
 KEYS = ["JHA_MODEL", "JHA_DRAFT_MODEL", "ANTHROPIC_API_KEY", "JHA_OPENAI_BASE_URL", "JHA_OPENAI_API_KEY", "OLLAMA_BASE_URL",
-        "JHA_MAIL_ADDRESS", "JHA_MAIL_APP_PASSWORD", "TYPESAFE_API_KEY"]
-SECRET = {"ANTHROPIC_API_KEY", "JHA_OPENAI_API_KEY", "JHA_MAIL_APP_PASSWORD", "TYPESAFE_API_KEY"}
+        "JHA_MAIL_ADDRESS", "JHA_MAIL_APP_PASSWORD", "TYPESAFE_API_KEY", "JHA_ACCESS_KEY", "JHA_HOST"]
+SECRET = {"ANTHROPIC_API_KEY", "JHA_OPENAI_API_KEY", "JHA_MAIL_APP_PASSWORD", "TYPESAFE_API_KEY", "JHA_ACCESS_KEY"}
+KEY_NAMES = {"TYPESAFE_API_KEY": "Jev (TypeSafe)", "ANTHROPIC_API_KEY": "Anthropic", "JHA_OPENAI_API_KEY": "OpenAI-compatible server",
+             "JHA_MAIL_APP_PASSWORD": "Mailbox app password"}   # every secret the Setup page's API keys step saves
 LINE = re.compile(r"^- .+\[[a-z_, ]+\]\s*$", re.M)   # a résumé-ready storybook line
 
 
@@ -93,8 +95,12 @@ def status() -> dict:
                      "So it can tell you who wrote back, and send the emails you approve.")),
         dict(id="browser", title="Sign in where you keep job accounts", required=False, done=signed,
              detail="Only for sites that need an account, like a company's Workday. Greenhouse, Lever and Ashby need none."),
-        dict(id="jev", title="Rank with Jev", required=False, done=jev.available(),
-             detail="Rates every posting before the model reads it: faster and cheaper. Without it, a keyword match ranks them."),
+        dict(id="phone", title="Use it on your phone", required=False,
+             done=bool(os.getenv("JHA_ACCESS_KEY")) and os.getenv("JHA_HOST", "127.0.0.1") != "127.0.0.1",
+             detail="Review and approve from your phone, anywhere, through Tailscale (a private link between your own devices)."),
+        dict(id="keys", title="API keys", required=False, done=jev.available(),
+             detail="Saved: " + (", ".join(n for k, n in KEY_NAMES.items() if os.getenv(k)) or "none yet")
+                    + ("" if jev.available() else " · Jev isn't connected, so Claude Code rates postings (no API)")),
     ]
     return {"steps": steps, "ready": all(s["done"] for s in steps if s["required"]), "models": m, "demo": config.is_demo(),
             "mailbox": {"address": mb["address"], "configured": mailbox.configured(), "gmail": mb["gmail"]},

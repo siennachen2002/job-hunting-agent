@@ -42,12 +42,31 @@ class JobScore(BaseModel):
     one_line: str = Field(description="one plain sentence to the person about this job, addressing them as 'you'; no pronouns like she/he")
 
 
-def score_job(job: dict) -> JobScore:
+def score_job(job: dict, tier: str = "draft") -> JobScore:
     roles = config.roles()
     posting = (f"Company: {job.get('company')}\nTitle: {job.get('title')}\nLocation: {job.get('location')}\n"
                f"Remote: {job.get('remote')}\nURL: {job.get('url')}\n\n{(job.get('description') or '')[:12000]}")
     task = P.RANK.format(first_name=config.first_name(), roles=json.dumps(roles, ensure_ascii=False))
-    return structured(_system(task), posting, JobScore, effort="low", max_tokens=2000, tier="draft")   # every posting: the draft model
+    return structured(_system(task), posting, JobScore, effort="low", max_tokens=2000, tier=tier)   # every posting: the draft model
+
+
+class ScoredJob(JobScore):
+    job_id: int = Field(description="the id given with the posting")
+
+
+class JobScores(BaseModel):
+    items: list[ScoredJob] = Field(description="one entry per posting, same ids as given")
+
+
+def score_jobs_claude_code(jobs: list[dict]) -> dict[int, JobScore]:
+    """Without Jev: Claude Code (your login, no API) rates a handful of postings in one call."""
+    roles = config.roles()
+    task = P.RANK.format(first_name=config.first_name(), roles=json.dumps(roles, ensure_ascii=False)) + " Rate every posting below, each on its own."
+    postings = "\n\n".join(f"### Posting id {j['id']}\nCompany: {j.get('company')}\nTitle: {j.get('title')}\nLocation: {j.get('location')}\n"
+                           f"Remote: {j.get('remote')}\n\n{(j.get('description') or '')[:3500]}" for j in jobs)
+    out = structured(_system(task), postings, JobScores, effort="low", max_tokens=8000, tier="claude-code")
+    want = {j["id"] for j in jobs}
+    return {s.job_id: JobScore(**s.model_dump(exclude={"job_id"})) for s in out.items if s.job_id in want}
 
 
 # ---------------------------------------------------------------- résumé
