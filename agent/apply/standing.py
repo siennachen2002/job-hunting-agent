@@ -115,6 +115,11 @@ def standing_answer(label: str, options: list[str] | None = None, as_option: boo
             hit = _pick(options, "^" + re.escape(v))
             if not hit and v == "Yes":   # "I acknowledge…" / "I agree…" or the form's only choice
                 hit = _pick(options, r"^i (acknowledge|agree|consent|confirm|certify)") or (options[0] if len(options) == 1 else None)
+            if not hit and v in ("Yes", "No") and re.search(r"office|location|on-?site|commut|hybrid|in[- ]person", l, re.I):
+                # "which office would you work from?": the option nearest home (Jersey City → New York), or none of them
+                home = (s.get("city") or "").lower()
+                metro = r"new york|nyc|\bny\b" if re.search(r"new york|nyc|brooklyn|queens|jersey city|hoboken|newark|\bnj\b|\bny\b", home) else re.escape(home.split(",")[0])
+                hit = _pick(options, metro) if v == "Yes" else _pick(options, r"not be able|neither|none|remote")
             return hit or v
     o = re.sub(r"\s*\(.*?\)", "", l).strip()   # "White (Not Hispanic or Latino)" -> "white"
     demo = [s.get(k, "") for k in ("gender", "race", "hispanic_latino", "veteran", "disability")]

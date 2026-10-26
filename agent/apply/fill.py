@@ -104,6 +104,7 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
         fields.sort(key=lambda f: 0 if f["type"] == "file" else 1)
         uploaded = False
         typed = []   # (selector, value, label) of plain text fills, re-checked before Submit
+        radios = {}  # radio group → {label, required, ticked}: a required group with nothing chosen is unfilled
         for f in fields:
             if uploaded is True and f["type"] != "file":
                 pg.wait_for_timeout(4000); uploaded = "done"
@@ -148,12 +149,21 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 # one element per option: tick it when the group's answer names this option,
                 # or when the option itself is a standing answer (a demographic choice or a "not a veteran" line)
                 opt = (f.get("options") or [""])[0]
+                if f["type"] == "radio":
+                    g = radios.setdefault(f.get("name") or f["label"], {"label": f["label"], "required": f["required"], "ticked": False})
+                    g["required"] = g["required"] or f["required"]
                 grp = _lookup(answers, lab) or standing_answer(f["label"])
+                if f["type"] == "radio" and grp:   # a yes/no answer to a question whose options are places or choices
+                    group_opts = [x.get("options", [""])[0] for x in fields if x["type"] == "radio" and (x.get("name") or x["label"]) == (f.get("name") or f["label"])]
+                    if not any(_norm(o) in ("yes", "no") for o in group_opts):
+                        grp = standing_answer(f["label"], group_opts) or grp
                 own = standing_answer(opt, as_option=True)
                 if _norm(opt) in ("", "on", "true", "yes", "1"):   # a lone checkbox for the whole question: tick it when the answer is yes
                     tick = bool(grp) and _norm(grp).startswith("yes")
                 else:
                     tick = (own == "Yes") if own in ("Yes", "No") else bool(grp and _norm(opt) and (_norm(opt) == _norm(grp) or _norm(opt) in _norm(grp)))
+                if tick and f["type"] == "radio":
+                    radios[f.get("name") or f["label"]]["ticked"] = True
                 if tick:
                     try:
                         pg.check(sel, force=True, timeout=5000); log.append(f"ticked {opt[:60] or f['label'][:60]}")
@@ -223,6 +233,9 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                         pg.select_option(sel, label=pick, timeout=5000); log.append(f"selected {pick[:40]} → {f['label'][:40]}")
                     except Exception as e:
                         log.append(f"could not select {f['label'][:40]}: {e.__class__.__name__}")
+        for g in radios.values():   # a required choice left empty: never submitted that way, asked of the person instead
+            if g["required"] and not g["ticked"]:
+                log.append(f"UNFILLED required: {g['label']}")
         pg.wait_for_timeout(1500)
         try:   # the filled form itself, not the job description above it
             # the biggest form on the page (Ashby puts a small "autofill from resume" form above the real one)
