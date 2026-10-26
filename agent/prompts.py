@@ -60,8 +60,16 @@ WHY_US = ("For a why-us question or cover letter (why this company, why this rol
           "product in the field's own vocabulary, the way a practitioner would say it. Show passion, never claim it (no 'passionate'). "
           "A little American warmth and energy is welcome; hype words are not.")
 
-EMAIL = ("Write a {kind} email from {first_name} to this company. Hinge it on one concrete thing in the context; "
-         "if the context is thin, write less rather than pad.")
+EMAIL = ("Write a {kind} email from {first_name} to this company. Shape: one line on why this role, hinged on one concrete thing "
+         "in the context; then what {first_name} can do and has done, as capabilities backed by experience (role, client, result), "
+         "not a walkthrough of how a project works; then why that is an unusually close match for this role, said plainly; one light "
+         "sentence of ambition (what they want to grow into here); end with a short, low-pressure ask for a 20-minute conversation. "
+         "If the employer asked for specific write-ups (e.g. things you've built: the problem, how it works, what you'd change), "
+         "answer every part they asked for, for each one, in connected sentences: what it is and the problem it solves, how it "
+         "works, what the candidate would change. Never invent the change: if the documents don't give one, write [YOUR ANSWER: …]. "
+         "Write for a reader who knows nothing about the candidate: introduce every project, company and tool in plain words "
+         "(what it is and why it exists) before any detail, in full sentences with cause and effect; never open a line with a bare "
+         "name, a link or a 'Problem:/How:' label. If the context is thin, write less rather than pad.")
 
 EMAIL_PROBLEM = "Propose, in 2-3 sentences, what the person would do about it, grounded in what they have actually done."
 

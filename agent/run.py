@@ -10,6 +10,7 @@
 from __future__ import annotations
 import argparse
 import json
+import re
 import sys
 from . import config, db
 from .sources import ats, hn_hiring
@@ -286,7 +287,8 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
                 db.update_application(con, a["id"], kind="manual", status="pending_approval", answers_json="{}",
                                       error="no form or email found in the posting; apply by hand from the link"); con.commit(); continue
             d = llm.draft_email("application", j["company"], (j.get("description") or "") + "\n\nFollow any application instructions in the posting exactly.")
-            body, vnotes = llm.clean_text(d.body, "email")
+            asks = re.search(r"what you'?ve built|things you'?ve built|tell us (about|how)|how it works|what you'?d change|write[- ]?up", j.get("description") or "", re.I)
+            body, vnotes = llm.clean_text(d.body, "email_writeup" if asks else "email")
             from .links import to_markdown_links
             db.update_application(con, a["id"], kind="email", status="pending_approval", answers_json="{}", email_to=emails[0],
                                   email_subject=d.subject, email_body=to_markdown_links(body),

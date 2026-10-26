@@ -606,6 +606,13 @@ def ui_config():
     return {"jev": bool(os.getenv("TYPESAFE_API_KEY"))}
 
 
+def _submitting(app_id: int) -> bool:
+    """A submit window for this application is open right now."""
+    import subprocess
+    out = subprocess.run(["pgrep", "-f", f"agent.run submit --app {app_id}$"], capture_output=True, text=True).stdout
+    return bool(out.strip())
+
+
 @app.get("/api/board")
 def board(tab: str = "review"):
     out = []
@@ -629,7 +636,7 @@ def board(tab: str = "review"):
             return out
         from agent.replies import init as _ri
         _ri(con)
-        statuses = ("pending_approval",) if tab == "review" else ("approved", "sent")
+        statuses = ("pending_approval",) if tab == "review" else ("approved", "sent", "failed")
         q = f"SELECT a.*, j.company, j.title jt, j.url, j.apply_url, j.location, j.remote, j.score, j.jev_p, j.kw_score, j.raw, j.description FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.status IN ({','.join('?'*len(statuses))}) ORDER BY a.id DESC"
         for a in con.execute(q, statuses).fetchall():
             a = dict(a); m, src = _match(a)
@@ -642,7 +649,8 @@ def board(tab: str = "review"):
                         "replies": [dict(x) for x in con.execute("SELECT kind, at, sender, subject, snippet, view_url FROM replies WHERE app_id=? ORDER BY at DESC", (a["id"],)).fetchall()] if tab == "applied" else [],
                         "needs": aj.get("needs_human") or [], "needs_options": aj.get("needs_options") or {}, "has_shot": "screenshot:" in (a.get("sent_log") or ""),
                         "email_to": a.get("email_to"), "email_subject": a.get("email_subject"), "email_body": a.get("email_body"),
-                        "sent_at": a.get("sent_at") or a.get("approved_at")})
+                        "sent_at": a.get("sent_at") or a.get("approved_at"), "error": a.get("error") or "",
+                        "submitting": _submitting(a["id"])})
     if tab == "review":
         out.sort(key=lambda c: -(c["match"] if c["match"] is not None else -1))
     if tab == "applied":   # what needs you first: offers, interviews, next steps; rejections last

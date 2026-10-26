@@ -34,6 +34,7 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Skills: particle systems, SDF, scroll-driven animation | Creative coding: Three.js, p5.js, WebGL | Skills name tools and disciplines; techniques roll up under them (list techniques only for roles that ask, e.g. generative art) |
 | Built… Built… Designed and built… Designed… (one page) | Architected, shipped, conducted, established, authored | Vary the opening verb; pick the one the field uses for that act |
 | Consulting posting: newest role shows design screens; client interviews and readouts sit in a 2024 entry | Newest two roles carry the client engagement, synthesis, business case and AI evaluation; the 2024 entry adds one supporting line | A reader judges you by what you did last |
+| 1. [CodeCut](link). Problem: motion graphics are mostly code… | I built CodeCut, an open-source video editor where a designer and AI agents edit the same timeline, because every small fix used to mean regenerating the whole video | Say what a thing is and why it exists before any detail; the reader knows nothing yet |
 | Selected work | Selected Projects | The section is projects, so name it with the field's word |
 | I am excited to apply… / At Acme I designed… so I want to join Northwind | Northwind's mission is to make the grid run on clean power. I love that it's a mission about plumbing, not slogans… | Why-us answers open with their mission, then why it matters to {name} as a person; experience last, lightly |
 
@@ -50,8 +51,9 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   name in it, cut it. Say what the résumé can't; never summarize it. One story, not a list. Write it the way {name} would say
   it across a table. Warm and visibly excited about the work (shown, never claimed), with one practitioner's observation
   about their product or problem that proves professional judgment.
-- Emails: under 120 words (more only if the employer asks for write-ups), one specific reason, one piece of evidence,
-  one clear ask. Links are words, written as [words](url).
+- Emails: under 150 words. Why this role (one concrete reason), then capabilities backed by experience, not project mechanics;
+  then the match to the role, plainly; a light touch of ambition; end with a 20-minute ask ("Worth 20 minutes?"). Requested
+  write-ups get a line and a link each, detail saved for the call. Links are words, written as [words](url).
 
 Notes, reasons and one-liners written for {name} address them as "you". Never assume pronouns.
 

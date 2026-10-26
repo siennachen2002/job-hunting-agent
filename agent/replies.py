@@ -29,19 +29,22 @@ LABELS = {"applied": "Applied", "confirmation": "Received", "next_step": "Next s
 ATS_SENDERS = ["greenhouse.io", "greenhouse-mail.io", "ashbyhq.com", "lever.co", "hire.lever.co", "myworkdayjobs.com",
                "workday.com", "smartrecruiters.com", "icims.com", "jobvite.com", "rippling.com", "gem.com"]
 
-RULES = [   # first match wins; order matters (a rejection often says "thank you for applying" too)
+RULES = [   # first match wins. Definite signals first; a receipt email's conditional lines ("if you are not selected",
+            # "we will reach out to schedule an interview") must not count, so the receipt rule comes before the weak ones
     ("offer", r"\b(pleased|excited|happy) to (extend|offer)|offer letter|formal offer"),
-    ("rejected", r"not (be )?(moving|move) forward|decided to (move|proceed) forward with other|(pursue|proceed with) other candidates|"
-                 r"will not be (moving|proceeding)|position has been filled|no longer (being )?considered|unable to (move|offer)|"
-                 r"not selected|regret to inform|unfortunately,? (we|after)|decided not to proceed"),
-    ("interview", r"\binterview|schedule (a|some) time|(phone|recruiter|intro(ductory)?) (screen|call|chat)|your availability|"
-                  r"calendly\.com|goodtime|book a time|would love to (chat|talk|speak|connect)|set up a (call|time)"),
-    ("next_step", r"assessment|take[- ]home|design (exercise|challenge)|portfolio review|hackerrank|codesignal|"
-                  r"next step|complete the following|questionnaire"),
+    ("rejected", r"unfortunately|regret to inform|not (be )?(moving|move) forward|decided to (move|proceed) forward with other|"
+                 r"(pursue|proceed with|move forward with) other candidates|position has been filled|no longer (being )?considered|"
+                 r"decided not to proceed|(have|has) not been selected|you were not selected|will not be (moving|proceeding)"),
+    ("interview", r"(like|love) to (invite you|schedule|set up)|invite you to (an? )?(interview|call|chat)|calendly\.com|goodtime|"
+                  r"book a time|your availability (for|to)|schedule (a|an) (call|interview|time) with"),
+    ("next_step", r"take[- ]home|design (exercise|challenge) (for|as part)|hackerrank|codesignal|complete the following assessment"),
     ("confirmation", r"(received|receipt of) your application|thank(s| you) for (applying|your (application|interest))|"
                      r"application (has been )?(received|submitted)|we.ve got your application"),
+    ("interview", r"\binterview|(phone|recruiter|intro(ductory)?) (screen|call|chat)|would love to (chat|talk|speak|connect)"),
+    ("next_step", r"assessment|portfolio review|next step|questionnaire"),
 ]
-SKIP = r"security code|verification code|verify your email|one[- ]time (code|password)|job alert|recommended jobs|newsletter"
+SKIP = (r"security code|verification code|verify your email|one[- ]time (code|password)|job alert|recommended jobs|newsletter|"
+        r"talent community|job agent|new jobs posted|jobs you might|view this post on the web|substack")
 
 
 def init(con):
@@ -92,11 +95,14 @@ def classify(text: str) -> str:
 
 def match(msg: dict, apps: list[dict]) -> dict | None:
     """The application a message is about: company name in sender/subject/body, else the posting's domain."""
-    hay = _norm(" ".join([msg.get("sender", ""), msg.get("subject", ""), msg.get("body", "")[:4000]]))
+    head = _norm(" ".join([msg.get("sender", ""), msg.get("subject", "")]))
+    from_ats = any(d in (msg.get("sender") or "").lower() for d in ATS_SENDERS)
+    # the company must be in the sender or subject; the body only counts when the mail comes from an application system
+    hay = _norm(" ".join([msg.get("sender", ""), msg.get("subject", ""), msg.get("body", "")[:4000] if from_ats else ""]))
     best = None
     for a in apps:
         n = _norm(a["company"])
-        score = (3 if n and f" {n} " in f" {hay} " else 0) + (2 if any(d.split(".")[0] in hay for d in a["domains"]) else 0)
+        score = (3 if n and f" {n} " in f" {hay} " else 0) + (2 if any(d.split(".")[0] in head for d in a["domains"]) else 0)
         score += 1 if _norm(a["title"]) and _norm(a["title"])[:30] in hay else 0
         if score and (best is None or score > best[0] or (score == best[0] and (a["sent_at"] or "") > (best[1]["sent_at"] or ""))):
             best = (score, a)

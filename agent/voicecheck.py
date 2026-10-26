@@ -75,14 +75,15 @@ def lint(text: str, kind: str = "resume") -> list[Issue]:
     if re.search(r"[☀-➿\U0001F300-\U0001FAFF]", text):
         issues.append(Issue("hard", "emoji"))
     sents = [s for s in re.split(r"(?<=[.!?])\s+", text.strip()) if len(s.split()) > 2]
-    if kind in ("email", "answer") and len(sents) >= 4:
+    if kind in ("email", "email_writeup", "answer") and len(sents) >= 4:
         lens = [len(s.split()) for s in sents]
         if max(lens) < 2 * min(lens):
             issues.append(Issue("soft", "sentences all similar length; vary them"))
-    if kind == "email":
-        n = len(text.split())
-        if n > 160:
-            issues.append(Issue("hard", f"email is {n} words (limit 160; proposals 260)"))
+    if kind in ("email", "email_writeup"):
+        n = len(re.sub(r"\]\(https?://[^)]+\)", "]", text).split())   # link URLs don't count as words
+        cap = 300 if kind == "email_writeup" else 160   # the employer asked for write-ups (what you built, how, what you'd change)
+        if n > cap:
+            issues.append(Issue("hard", f"email is {n} words (limit {cap})"))
         if "'" not in text and "’" not in text:
             issues.append(Issue("soft", "no contraction; reads stiff"))
     if kind == "resume":
