@@ -72,7 +72,9 @@ WHY_US = ("For a why-us question or cover letter (why this company, why this rol
           "Let real enthusiasm show: say plainly what genuinely excites the candidate about this work, in their own voice, with "
           "one vivid concrete detail. Balance it with professional judgment: one sharp observation about the company's problem or "
           "product in the field's own vocabulary, the way a practitioner would say it. Show passion, never claim it (no 'passionate'). "
-          "A little American warmth and energy is welcome; hype words are not.")
+          "Professional register throughout: personality shows in what the candidate noticed, decided and built, never in jokes, "
+          "asides in brackets, small talk or casual phrases ('I love that', 'I'd love to', 'a lot of'). No colons and no em dashes; "
+          "write full sentences. Warmth is welcome; hype words are not.")
 
 EMAIL = ("Write a {kind} email from {first_name} to this company. Shape: one line on why this role, hinged on one concrete thing "
          "in the context; then what {first_name} can do and has done, as capabilities backed by experience (role, client, result), "
