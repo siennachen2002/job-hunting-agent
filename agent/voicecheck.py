@@ -12,7 +12,7 @@ fostered foster empower empowered empowering elevate elevated streamline streaml
 delve delved embark embarked bolster bolstered garner garnered underscore underscores showcase showcased showcasing
 cutting-edge innovative robust seamless seamlessly passionate results-driven detail-oriented self-motivated proactive holistic impactful
 delightful world-class best-in-class state-of-the-art groundbreaking transformative meticulous comprehensive vibrant pivotal crucial synergistic
-synergy synergies tapestry realm paradigm value-add go-getter rockstar ninja wizard thrilled humbled truly genuinely incredibly""".split()
+synergy synergies dynamic honed hone tapestry realm paradigm value-add go-getter rockstar ninja wizard thrilled humbled truly genuinely incredibly""".split()
 # context-dependent: flag softly (literal uses are fine, e.g. "service ecosystem", "user journeys", "Strategic Design and Management")
 SOFT_WORDS = "landscape journey solutions deliverables strategic dynamic deeply optimize optimized drove".split()
 # house rule 16: professional register (résumés and formal answers)
@@ -113,6 +113,9 @@ def lint_resume(content: dict, max_same_verb: int = 2) -> list[Issue]:
     lines = [b["text"] for e in content.get("experience", []) for b in e.get("bullets", [])] + [p.get("blurb", "") for p in content.get("projects", [])]
     verbs = Counter(l.split()[0].lower().strip(",") for l in lines if l.split())
     out = [Issue("hard", f"'{v.title()}' opens {n} lines on this page; vary the verb") for v, n in verbs.items() if n > max_same_verb]
+    concrete = [l for l in lines if re.search(r"\d", l)]
+    if lines and len(concrete) < len(lines) / 2:   # recruiters look for numbers or concrete scope in at least half the lines
+        out.append(Issue("soft", f"only {len(concrete)} of {len(lines)} lines carry a number or concrete scope"))
     out += [Issue("hard", f"over two lines ({len(l)} characters, max {MAX_BULLET}): {l[:60]}…") for l in lines if len(l) > MAX_BULLET]
     return out
 

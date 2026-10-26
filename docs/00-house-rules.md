@@ -46,7 +46,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   Choose and order material by the role lens in 06-roles.md; the same project reads differently for each role.
   The two most recent roles must, on their own, show every core requirement in the posting; older roles and projects
   reinforce, they don't fill gaps. Leave out recent work that doesn't serve this posting, even a current job.
-  Then word every line in the posting's own vocabulary where it truthfully fits, and order bullets by its requirements;
+  Then use the posting's nouns where they truthfully fit (never its prose: plain verbs, {name}'s own voice), order bullets by its
+  requirements, and state a required domain or years of experience outright when the record supports it;
   the facts (numbers, clients, tools, titles) never change.
 - Form answers: answer the question asked, 90-150 words for open questions, no URLs in text boxes.
 - Why-us answers and cover letters are one thing: mission first, made concrete (one thing the company actually built, decided or

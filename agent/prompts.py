@@ -42,8 +42,10 @@ TAILOR = ("Build the one-page résumé content for this posting through the matc
 
 ALIGN = ("Align this one-page résumé to the posting. First list the posting's 5-8 core requirements in its own words. Then rewrite "
          "every bullet and project blurb so a reader of this posting recognises their requirements: lead with the outcome or capability "
-         "the posting asks for, use the posting's own terms where they truthfully describe the work (their word for the role, the "
-         "activity, the user, the tool), and order bullets inside each entry by how directly they answer the requirements. The two most "
+         "the posting asks for, use the posting's own nouns and requirement names where they truthfully describe the work (their word "
+         "for the role, the activity, the user, the tool), but never its sentence rhythm or adjectives: plain verbs, the person's own "
+         "voice, so this résumé doesn't read like everyone else's. Where a requirement names a domain or a length of experience, "
+         "state it explicitly if the record supports it. Use any one posting term at most three times on the page. Order bullets inside each entry by how directly they answer the requirements. The two most "
          "recent roles must cover every core requirement between them. Facts are fixed: keep every number, employer, client, title, date "
          "and tool exactly as given; never add a tool, metric, client, result or responsibility that isn't already there, and never add "
          "what happened next or around it (deployed, adopted, drove adoption, rolled out, alongside a named person, a count in words); "
