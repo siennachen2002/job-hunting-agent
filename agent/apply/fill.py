@@ -51,6 +51,10 @@ def best_option(val: str, options: list[str]) -> str | None:
         hit = next((o for o in opts if term in o.lower() and year in o), None) or next((o for o in opts if year in o), None)
         if hit:
             return hit
+    if re.fullmatch(r"\s*(united states( of america)?|usa|u\.s\.a?\.?|us)\s*", val, re.I):   # the country, however the form words it
+        hit = next((o for o in opts if re.fullmatch(r"\s*(united states( of america)?|usa|u\.s\.a?\.?|us)( \(.*\))?\s*", o, re.I)), None)
+        if hit:
+            return hit
     if re.search(r"new york|\bnyc\b|brooklyn|queens|hoboken|\bnj\b|\bny\b", val, re.I):
         hit = next((o for o in opts if re.search(r"\bnyc\b|new york", o, re.I)), None)
         if hit:
@@ -241,7 +245,15 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 body = pg.inner_text("body").lower()
             m = re.search(r"(missing entry for required field[^\n]*|needs corrections[^\n]*|this field is required[^\n]*)", body)
             if m and not any(w in body for w in ("thank", "received", "submitted")):
-                result["needs_person"] = "form rejected: " + m.group(1)[:200]
+                try:   # which fields the form rejected, by their question text
+                    bad = pg.evaluate("""() => [...document.querySelectorAll('[aria-invalid="true"], .field-error, [class*=error] input, [class*=Error] input')]
+                        .map(el => { const f = el.closest('.field, fieldset, [class*=field], [class*=Field], label') || el.parentElement;
+                                     const l = f && (f.querySelector('label, legend') || f); return (l ? l.innerText : '').trim().split('\\n')[0].slice(0, 90); })
+                        .filter(Boolean)""")
+                except Exception:
+                    bad = []
+                bad = list(dict.fromkeys(bad))[:4]
+                result["needs_person"] = "form rejected" + (": fix " + "; ".join(bad) if bad else ": " + m.group(1)[:200])
             elif re.search(r"security code|verification code|enter the code", body) and not any(w in body for w in ("thank you for applying", "successfully submitted")):
                 # Greenhouse emails a one-time code for automated-looking submissions. It is a human check:
                 # the person types it into this window and clicks Submit; we only wait and watch.

@@ -71,6 +71,7 @@ def simple_answer(label: str) -> str | None:
         (r"linkedin", s.get("linkedin")),
         (r"github", s.get("github")),
         (r"how did you (hear|find|learn)", s.get("how_heard") or "Company website"),
+        (r"opt[- ]?in.*(whatsapp|sms|text message|marketing|newsletter)|(whatsapp|sms|text) (messages|updates)", "No"),   # marketing opt-ins: no
         (r"^\s*(current )?location( \(city\))?\s*\*?\s*$|where are you (currently )?(located|based)|city of residence", s.get("city")),
         (r"(expected )?graduation date|when (do|will) you graduate|currently enrolled.*graduat", s.get("grad_date")),
         (r"earliest (you could|you can|date you could|start)|when (can|could) you start|available to start|start date", s.get("earliest_start")),

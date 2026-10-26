@@ -222,7 +222,7 @@
   .sub svg { width:12px; height:12px; } .sub .spin { width:10px; height:10px; }
   .sub.ok { background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green); }
   .sub.ok-noemail { background:var(--sunk); color:var(--ink2); }
-  .sub.progress { background:color-mix(in srgb, var(--blue) 12%, transparent); color:var(--blue); }
+  .sub.busy { background:color-mix(in srgb, var(--blue) 12%, transparent); color:var(--blue); }
   .sub.failed { background:color-mix(in srgb, var(--red) 12%, transparent); color:var(--red); }
   .subbox { display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink2); }
   .mailcard { margin-top:12px; } .mailcard .rh svg { color:var(--green); width:15px; height:15px; }
@@ -649,21 +649,21 @@ const appliedOrder = ap => ['heard', 'rejected', 'waiting'].flatMap(k => ap.filt
 function submission(c) {
   const conf = (c.replies || []).filter(r => r.kind === 'confirmation' || r.kind === 'next_step' || r.kind === 'interview' || r.kind === 'offer' || r.kind === 'rejected');
   if (c.status === 'failed') return {k: 'failed', label: 'Failed', note: c.error || 'Not submitted'};
-  if (c.status === 'approved' || c.submitting) return {k: 'progress', label: 'In progress', note: c.submitting ? 'Submitting in a browser window on your Mac' : 'Approved, waiting to be submitted'};
-  if (ACCTS && ACCTS.demo) return {k: 'progress', label: 'Demo', note: 'Demo account: nothing was sent'};
+  if (c.status === 'approved' || c.submitting) return {k: 'busy', label: 'In progress', note: c.submitting ? 'Submitting in a browser window on your Mac' : 'Approved, waiting to be submitted'};
+  if (ACCTS && ACCTS.demo) return {k: 'busy', label: 'Demo', note: 'Demo account: nothing was sent'};
   return conf.length ? {k: 'ok', label: 'Submitted', note: 'Confirmed by email'} : {k: 'ok-noemail', label: 'Submitted', note: 'No confirmation email yet'};
 }
-function subChip(c) { const x = submission(c); return `<span class="sub ${x.k}">${x.k === 'ok' ? I.check : x.k === 'failed' ? '✕ ' : x.k === 'progress' ? '• ' : ''}${x.label}</span>`; }
+function subChip(c) { const x = submission(c); return `<span class="sub ${x.k}">${x.k === 'ok' ? I.check : x.k === 'failed' ? '✕ ' : x.k === 'busy' ? '• ' : ''}${x.label}</span>`; }
 function appliedLine(c) {
   const r = latestReply(c), col = (STAGE[stageOf(c)] || STAGE.applied)[1];
   const x = submission(c);
-  if (x.k === 'failed' || x.k === 'progress') return `<div class="st" style="display:flex;gap:6px">${subChip(c)}<span class="sj">${esc(x.note)}</span></div>`;
+  if (x.k === 'failed' || x.k === 'busy') return `<div class="st" style="display:flex;gap:6px">${subChip(c)}<span class="sj">${esc(x.note)}</span></div>`;
   return `<div class="st" style="display:flex;gap:6px">${subChip(c)}<span class="sj">${r ? esc(r.subject) : esc(x.note) + ' · ' + day(c.sent_at)}</span></div>`;
 }
 function appliedQueue(list) {
   const items = k => list.filter(c => appliedBucket(c) === k).map(queueItem).join('') || '<div class="qnone">None yet.</div>';
   const n = k => list.filter(c => appliedBucket(c) === k).length;
-  const top = list.filter(c => ['failed', 'progress'].includes(submission(c).k));
+  const top = list.filter(c => ['failed', 'busy'].includes(submission(c).k));
   const rest = list.filter(c => !top.includes(c)); list = rest;
   return `${top.length ? `<div class="qh">Needs attention<span>${top.length}</span></div>${top.map(queueItem).join('')}` : ''}<div class="qh">Replies</div>
     <div class="qh2">Heard back<span>${n('heard')}</span></div>${items('heard')}
