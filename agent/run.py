@@ -276,6 +276,10 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
             config.SCREENS.mkdir(parents=True, exist_ok=True); shot = str(config.SCREENS / f"app{a['id']}.png")
             r = fill(j["apply_url"], {x.question: x.answer for x in fa.answers if x.answer}, a["resume_pdf"], shot)
             dump = fa.model_dump()
+            for line in r.get("log", []):   # a required field the form couldn't fill is a question for the person, always
+                m = re.match(r"UNFILLED (?:required|\(no matching option[^)]*\)): (.+)", line)
+                if m and m.group(1).strip() not in dump["needs_human"]:
+                    dump["needs_human"].append(m.group(1).strip())
             opts = {q["label"]: q["options"] for q in qs if q.get("options")}
             dump["needs_options"] = {n: opts[n] for n in fa.needs_human if n in opts}   # shown as a dropdown in "Questions for you"
             db.update_application(con, a["id"], kind="ats_web", status="pending_approval", answers_json=json.dumps(dump, ensure_ascii=False),

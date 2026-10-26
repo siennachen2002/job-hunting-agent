@@ -7,7 +7,21 @@ JS = r"""
 () => {
   const out = [];
   const seen = new Set();
+  const groupQuestion = (el) => {   // a radio's own label is its option ("Yes"); the question sits above the group
+    const own = ((el.closest('label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) || {}).innerText || '').trim();
+    let n = el.parentElement;
+    for (let i = 0; i < 7 && n; i++, n = n.parentElement) {
+      const radios = n.querySelectorAll(`input[type="radio"]${el.name ? `[name="${CSS.escape(el.name)}"]` : ''}`);
+      if (radios.length < 2 && i < 6) continue;
+      for (const l of n.querySelectorAll('legend, label, [class*="label"], [class*="title"], [class*="question"], h3, h4, p')) {
+        const t = (l.innerText || '').trim();
+        if (t && t !== own && !l.querySelector('input') && !/^(yes|no)$/i.test(t)) return t;
+      }
+    }
+    return '';
+  };
   const labelFor = (el) => {
+    if (el.type === 'radio') { const q = groupQuestion(el); if (q) return q; }
     if (el.id) { const u = document.getElementById('upload-label-' + el.id); if (u && u.innerText.trim()) return u.innerText.trim(); }
     if (el.id) { const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`); if (l && !/^(attach|dropbox|enter manually)\b/i.test(l.innerText.trim())) return l.innerText.trim(); }
     if (el.type === 'file') {   // upload buttons are labelled "Attach"; the question is further up
@@ -22,7 +36,7 @@ JS = r"""
   document.querySelectorAll('input, textarea, select, [role="combobox"]').forEach(el => {
     if (el.type === 'hidden' || el.type === 'submit') return;
     let label = labelFor(el).replace(/\s+/g, ' ').slice(0, 1200);
-    const key = label + '|' + (el.name || el.id);
+    const key = label + '|' + (el.name || el.id) + (el.type === 'radio' || el.type === 'checkbox' ? '|' + (el.id || el.value) : '');   // every option of a group
     if (seen.has(key)) return; seen.add(key);
     const wrap = el.closest('fieldset') || el.parentElement;
     let options = [];

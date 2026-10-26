@@ -75,7 +75,7 @@ def simple_answer(label: str) -> str | None:
         (r"^\s*(current )?location( \(city\))?\s*\*?\s*$|where are you (currently )?(located|based)|city of residence", s.get("city")),
         (r"(expected )?graduation date|when (do|will) you graduate|currently enrolled.*graduat", s.get("grad_date")),
         (r"earliest (you could|you can|date you could|start)|when (can|could) you start|available to start|start date", s.get("earliest_start")),
-        (r"(come|commute) (in)?to the office|in[- ]office|on-?site|in[- ]person|days (a|per) week|hybrid",
+        (r"(come|commute) (in)?to the office|in[- ]office|in an office|from (the|an|our) office|on-?site|in[- ]person|days (a|per) week|hybrid",
          None if not s.get("onsite") else ("No" if s["onsite"].startswith("Remote") else "Yes")),
         (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?employment|visa sponsorship",
          None if not (s.get("sponsorship_now") or s.get("sponsorship_future")) else

@@ -150,7 +150,10 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 opt = (f.get("options") or [""])[0]
                 grp = _lookup(answers, lab) or standing_answer(f["label"])
                 own = standing_answer(opt, as_option=True)
-                tick = (own == "Yes") if own in ("Yes", "No") else bool(grp and _norm(opt) and (_norm(opt) == _norm(grp) or _norm(opt) in _norm(grp)))
+                if _norm(opt) in ("", "on", "true", "yes", "1"):   # a lone checkbox for the whole question: tick it when the answer is yes
+                    tick = bool(grp) and _norm(grp).startswith("yes")
+                else:
+                    tick = (own == "Yes") if own in ("Yes", "No") else bool(grp and _norm(opt) and (_norm(opt) == _norm(grp) or _norm(opt) in _norm(grp)))
                 if tick:
                     try:
                         pg.check(sel, force=True, timeout=5000); log.append(f"ticked {opt[:60] or f['label'][:60]}")
@@ -222,7 +225,13 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                         log.append(f"could not select {f['label'][:40]}: {e.__class__.__name__}")
         pg.wait_for_timeout(1500)
         try:   # the filled form itself, not the job description above it
-            form = pg.locator("form:has(input), #application-form, [class*=application-form], [class*=ApplicationForm]").first
+            # the biggest form on the page (Ashby puts a small "autofill from resume" form above the real one)
+            idx = pg.evaluate("""() => { const c = [...document.querySelectorAll('form, #application-form, [class*=application-form], [class*=ApplicationForm]')];
+                let best = -1, area = 0; c.forEach((el, i) => { const r = el.getBoundingClientRect(); if (r.width * r.height > area) { area = r.width * r.height; best = i; } });
+                return area > 200000 ? best : -1; }""")
+            if idx < 0:
+                raise ValueError("no form big enough")
+            form = pg.locator("form, #application-form, [class*=application-form], [class*=ApplicationForm]").nth(idx)
             form.scroll_into_view_if_needed(timeout=3000); form.screenshot(path=shot_path, timeout=10000)
         except Exception:
             pg.screenshot(path=shot_path, full_page=True)
