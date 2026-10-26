@@ -239,7 +239,11 @@ def years_of_experience() -> int:
 
 def write_summary(job: dict, content: dict) -> str:
     """The résumé summary, one fixed shape: 'AI-native <role> with <N> years of experience in <fields>. Advanced skills
-    in <skills>.' The model only chooses the role, fields and skills; each must be in the record, or it is left out."""
+    in <skills>.' The model only chooses the role, fields and skills; each must be in the record, or it is left out.
+    A summary the person wrote (profile.yaml summary) is used word for word instead."""
+    own = (config.profile().get("summary") or "").strip()
+    if own:
+        return own
     allowed = [f.strip() for f in config.profile().get("summary_fields") or []]
     lines = [b["text"] for e in content.get("experience", []) for b in e.get("bullets", [])] + [p["blurb"] for p in content.get("projects", [])]
     skills_page = [x for g in content.get("skills", []) for x in re.split(r",\s*", g.get("items", "") if isinstance(g.get("items"), str) else ", ".join(g.get("items") or []))]
