@@ -26,7 +26,7 @@ Every model call sends the same system prefix, then one task line, then the step
 
 ### Tell it everything
 
-**Runs:** You · `dashboard → Storybook`
+**Runs:** You · `dashboard → Storybook chat (history kept per account)`
 
 **Input**
 
@@ -42,6 +42,7 @@ Every model call sends the same system prefix, then one task line, then the step
 |---|---|---|
 | PDF · DOCX · Audio | the files (saved to profile/uploads/) | **Add to the storybook** |
 | Text | your note | **Add to the storybook** |
+| Text | everything you said or dropped, for the form answers | **Standing answers** |
 | PDF | a résumé you like | **Learn a style** |
 
 ### Add to the storybook
@@ -121,19 +122,23 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 ### Standing answers
 
-**Runs:** You · `dashboard → Setup · agent/setup_answers.py`
+**Runs:** The model · `agent/setup_answers.py · fill_from (in the background of the chat)` · output schema: `Answers`
 
 **Input**
 
 | Type | What | From |
 |---|---|---|
-| Click | Setup → Standing answers form | outside |
+| Text | what you said or dropped in the chat | **Tell it everything** |
+| Click | the form, to correct or finish it | outside |
 
 **Output**
 
 | Type | What | To |
 |---|---|---|
 | YAML | profile/standing.yaml | **Answer the form**, **Fill the form** |
+| Text | the blanks left, named in the chat and marked on the form | outside |
+
+> Filled from your words and files; you never have to type into the form. Required blanks are marked, never guessed.
 
 ### The storybook
 
@@ -151,7 +156,7 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 | Type | What | To |
 |---|---|---|
-| Markdown | profile/master/*.md + preferences.yaml + docs/00-house-rules.md, sent as the system prefix | **Add to the storybook**, **Rank the fit**, **Write the résumé**, **Answer the form**, **Revise the résumé**, **Email applications**, **Cover letter (first version)** |
+| Markdown | profile/master/*.md + preferences.yaml + docs/00-house-rules.md, sent as the system prefix | **Add to the storybook**, **Rank the fit**, **Write the résumé**, **Answer the form**, **Revise the résumé**, **Email applications**, **Cover letter** |
 
 > Files, not a step: every model call reads them, with the house rules and your preferences, as the system prefix.
 
@@ -159,13 +164,14 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 ### Find postings
 
-**Runs:** Code, no model · `agent/sources/ · agent/run.py · discover, prefilter`
+**Runs:** Code, no model · `agent/sources/ · agent/run.py · discover, prefilter, find_jobs`
 
 **Input**
 
 | Type | What | From |
 |---|---|---|
-| API | Greenhouse · Lever · Ashby board APIs | outside |
+| Click | Find matching jobs (1-5), offered in the chat once the storybook is ready | outside |
+| API | Greenhouse · Lever · Ashby board APIs, read in parallel | outside |
 | Web page | Hacker News, Who is hiring | outside |
 | YAML | profile/companies.yaml (watchlist) | outside |
 | YAML | preferences.yaml (avoid_keywords) | outside |
@@ -174,11 +180,13 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 | Type | What | To |
 |---|---|---|
-| SQLite | jobs: company, title, location, url, description | **Rank the fit** |
+| SQLite | jobs: company, title, location, url, description (talent pools skipped) | **Rank the fit** |
+
+> You start it. The best-ranked jobs are then prepared one by one with no more clicks; each comes back as a Review button.
 
 ### Rank the fit
 
-**Runs:** The draft model (or the model) · `agent/jev.py (Jev, TypeSafe) · agent/llm.py · score_job` · output schema: `JobScore`
+**Runs:** The draft model (or the model) · `agent/jev.py (Jev, TypeSafe) · agent/llm.py · score_jobs_claude_code` · output schema: `JobScore`
 
 **Input**
 
@@ -202,13 +210,13 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 Judge whether {first_name} is a credible candidate for this posting, as a strict recruiter in that field would. Map it to one role family below; respect that family's seniority guard (cap at 50, action 'maybe'). Work authorisation is settled, so it is never a blocker. Role families: {roles}
 ```
 
-> Jev rates every posting first when TYPESAFE_API_KEY is set; the model then reads the likely fits. Under 50 is never applied to.
+> Jev rates every posting when its key is saved (Setup → API keys); without it Claude Code rates them, 8 per call, never an API key. Under 50 is never applied to.
 
 ## 03 · The résumé and the form
 
 ### Write the résumé
 
-**Runs:** The model · `agent/llm.py · tailor_resume → agent/resume/render.py` · output schema: `ResumeContent`
+**Runs:** The model · `agent/assemble.py → agent/llm.py · align_resume → agent/resume/render.py` · output schema: `Aligned`
 
 **Input**
 
@@ -223,14 +231,16 @@ Judge whether {first_name} is a credible candidate for this posting, as a strict
 | Type | What | To |
 |---|---|---|
 | JSON | ResumeContent | **Writing check** |
-| PDF | out/resumes/<name>.pdf (one page) | **You review** |
+| PDF | out/resumes/<name>.pdf (one page; website shown as its address) | **You review** |
 | PNG | out/resumes/<name>.png (preview) | **You review** |
 
-**Prompt** (`prompts.TAILOR`)
+**Prompt** (`prompts.ALIGN`)
 
 ```text
-Build the one-page résumé content for this posting through the matching lens in 06-roles.md. Mark each item's provenance honestly; 'new' items must stay under {diy_max}. Where a piece of work has a URL in the master documents, set link_text and link.
+Align this one-page résumé to the posting. First list the posting's 5-8 core requirements in its own words. Then rewrite every bullet and project blurb so a reader of this posting recognises their requirements: lead with the outcome or capability the posting asks for, use the posting's own nouns and requirement names where they truthfully describe the work (their word for the role, the activity, the user, the tool), but never its sentence rhythm or adjectives: plain verbs, the person's own voice, so this résumé doesn't read like everyone else's. Where a requirement names a domain or a length of experience, state it explicitly if the record supports it. Use any one posting term at most three times on the page. Order bullets inside each entry by how directly they answer the requirements. The two most recent roles must cover every core requirement between them. Facts are fixed: keep every number, employer, client, title, date and tool exactly as given; never add a tool, metric, client, result or responsibility that isn't already there, and never add what happened next or around it (deployed, adopted, drove adoption, rolled out, alongside a named person, a count in words); change the framing and the words, never the facts. If a requirement isn't supported, leave it uncovered and name it in gaps. Keep each bullet to one achievement in at most two lines (200 characters including spaces), opening verbs varied. Keep entries, projects and their order as given.
 ```
+
+> Picks the true lines for the role, then words them in the posting's nouns (never its prose) and orders them by its requirements; the two newest roles cover every core requirement. Facts never change: a new number or outcome keeps the original line. Two lines per bullet at most.
 
 ### Writing check
 
@@ -256,7 +266,7 @@ Build the one-page résumé content for this posting through the matching lens i
 Rewrite the text to fix the listed problems. Same facts, same or shorter length.
 ```
 
-> The rules are code (agent/voicecheck.py and the phrases you taught it); the model only rewrites what they flag.
+> The rules are code (agent/voicecheck.py and the phrases you taught it): banned phrases, two lines per bullet, and in cover letters no colons, em dashes, small talk, empty contrasts or wh-clauses. The model only rewrites what they flag.
 
 ### Answer the form
 
@@ -270,6 +280,7 @@ Rewrite the text to fix the listed problems. Same facts, same or shorter length.
 | SQLite | the posting | **Rank the fit** |
 | Text | the company's mission, in its own words (agent/mission.py) | outside |
 | YAML | profile/standing.yaml | **Standing answers** |
+| YAML | profile/saved-answers.yaml (questions you answered before) | **You review** |
 
 **Output**
 
@@ -287,10 +298,10 @@ Answer this application form. Anything only {first_name} can answer goes in need
 **Added when it applies** (`prompts.WHY_US`)
 
 ```text
-For a why-us question (why this company, what excites you about us): open with the company's mission in a sentence, in their words or close to them; then why it matters to the candidate as a person: character, habits, what they love doing (07-voice.md); experience last, one light touch at most. Never open with the candidate. A little American warmth and energy is welcome; hype words are not.
+For a why-us question or cover letter (why this company, why this role, what excites you about us): write about the company's culture and this role, never a description of their product (they know their product). Open with one specific thing about how the company works or what it values, in its own words from the posting or the mission notes (a principle, a way of working, a stated belief), and why that suits how the candidate works. Now and then, when the company has stated where it is heading in the next year or two (in the posting or the mission notes), name that near-term vision and the part this role plays in it. Then the role: what this team is asking the person in the seat to do, and the candidate's fit for exactly that, shown through one short story from the record, not adjectives (07-voice.md for character and habits). Never open with the candidate or 'I am writing'. Swap test: delete any sentence that would still be true with another company's name in it. Don't summarize the résumé, don't list what the candidate wants from the job, use a number only if the master documents give it. Let real enthusiasm show, never claim it (no 'passionate'). Professional register: personality shows in what the candidate noticed, decided and built, and a well-placed joke is welcome; casual filler ('I love that', 'I'd love to', 'a lot of') is not. Every sentence must say something specific in precise words: no empty contrasts like 'as something you design for, not something that just happens'. Name things with noun phrases, not wh-clauses: 'nearby friends', not 'who is around'; 'its place in the workflow', not 'where it sits'. No colons and no em dashes; write full sentences. Hype words are not welcome.
 ```
 
-> Why-us questions add the WHY_US rule: open with the company's mission, then why it matters to you.
+> A question you answered before is answered again from Saved answers. Arbitration, certifications and export-control declarations always stay yours. Why-us questions add the WHY_US rule: the company's culture and the role, never a tour of their product.
 
 ### Fill the form
 
@@ -309,11 +320,13 @@ For a why-us question (why this company, what excites you about us): open with t
 
 | Type | What | To |
 |---|---|---|
-| PNG | out/screens/app<id>.png (full page; nothing submitted) | **You review** |
+| PNG | out/screens/app<id>.png (the filled form itself; nothing submitted) | **You review** |
 
-### Cover letter (first version)
+> Reads each radio group's own question, keeps every option, maps answers onto the form's wording (countries, opt-ins). A required field it can't fill becomes a question for you.
 
-**Runs:** The model · `agent/cover.py · python -m agent.run cover <job_id>` · output schema: `CoverDraft`
+### Cover letter
+
+**Runs:** The model · `agent/llm.py · answer_form (why-us and cover-letter questions) · agent/cover.py` · output schema: `FormAnswers`
 
 **Input**
 
@@ -326,13 +339,15 @@ For a why-us question (why this company, what excites you about us): open with t
 
 | Type | What | To |
 |---|---|---|
-| JSON | CoverDraft {cover_letter, why_company, needs_human} | **You review** |
+| Text | the cover letter: the third document in review, beside the résumé and the form | **You review** |
 
-**Prompt** (`prompts.COVER`)
+**Prompt** (`prompts.WHY_US`)
 
 ```text
-Draft a cover letter and a 'Why {company}' answer for {first_name}. Use only storybook facts and what the posting or research says about the company. If the employer requires the candidate's own first draft, leave both fields empty and explain in needs_human.
+For a why-us question or cover letter (why this company, why this role, what excites you about us): write about the company's culture and this role, never a description of their product (they know their product). Open with one specific thing about how the company works or what it values, in its own words from the posting or the mission notes (a principle, a way of working, a stated belief), and why that suits how the candidate works. Now and then, when the company has stated where it is heading in the next year or two (in the posting or the mission notes), name that near-term vision and the part this role plays in it. Then the role: what this team is asking the person in the seat to do, and the candidate's fit for exactly that, shown through one short story from the record, not adjectives (07-voice.md for character and habits). Never open with the candidate or 'I am writing'. Swap test: delete any sentence that would still be true with another company's name in it. Don't summarize the résumé, don't list what the candidate wants from the job, use a number only if the master documents give it. Let real enthusiasm show, never claim it (no 'passionate'). Professional register: personality shows in what the candidate noticed, decided and built, and a well-placed joke is welcome; casual filler ('I love that', 'I'd love to', 'a lot of') is not. Every sentence must say something specific in precise words: no empty contrasts like 'as something you design for, not something that just happens'. Name things with noun phrases, not wh-clauses: 'nearby friends', not 'who is around'; 'its place in the workflow', not 'where it sits'. No colons and no em dashes; write full sentences. Hype words are not welcome.
 ```
+
+> Any 'why us', 'why this role' or cover-letter question. When the employer wants your own first draft, the card says so and waits.
 
 ## 04 · You decide
 
@@ -346,6 +361,7 @@ Draft a cover letter and a 'Why {company}' answer for {first_name}. Use only sto
 |---|---|---|
 | PDF | résumé | **Write the résumé** |
 | PNG | filled form | **Fill the form** |
+| Text | cover letter | **Cover letter** |
 | JSON | questions for you | **Answer the form** |
 | Text | checklist | outside |
 
@@ -356,6 +372,7 @@ Draft a cover letter and a 'Why {company}' answer for {first_name}. Use only sto
 | Click | Approve | **Submit**, **Email applications** |
 | Text | Change this résumé: your note, typed or spoken | **Revise the résumé** |
 | Text | Reject, with a reason (SQLite feedback) | **Learn from notes** |
+| YAML | your answers to questions for you, kept as Saved answers and filled on other applications at once | **Answer the form** |
 
 ### Revise the résumé
 
@@ -433,7 +450,7 @@ Propose the smallest patches that would have prevented each problem. Prefer one 
 | Web page | the submitted application | outside |
 | SQLite | applications.status = sent | **Track replies** |
 
-> A CAPTCHA or an emailed security code stops it: you finish it in that window. LinkedIn and Indeed are never automated.
+> Never presses Submit on a form with a required field empty: it goes back to review with that field as a question. A CAPTCHA or an emailed security code is always yours, in that window. LinkedIn and Indeed are never automated.
 
 ### Email applications
 
@@ -456,7 +473,7 @@ Propose the smallest patches that would have prevented each problem. Prefer one 
 **Prompt** (`prompts.EMAIL`)
 
 ```text
-Write a {kind} email from {first_name} to this company. Hinge it on one concrete thing in the context; if the context is thin, write less rather than pad.
+Write a {kind} email from {first_name} to this company. Shape: one line on why this role, hinged on one concrete thing in the context; then what {first_name} can do and has done, as capabilities backed by experience (role, client, result), not a walkthrough of how a project works; then why that is an unusually close match for this role, said plainly; one light sentence of ambition (what they want to grow into here); end with a complete, polite sentence asking for a 20-minute conversation (e.g. 'Would you have 20 minutes in the next week or two to talk about the role?'), never a fragment like 'Worth 20 minutes?'. If the employer asked for specific write-ups (e.g. things you've built: the problem, how it works, what you'd change), answer every part they asked for, for each one, in connected sentences: what it is and the problem it solves, how it works, what the candidate would change. Never invent the change: if the documents don't give one, write [YOUR ANSWER: …]. Write for a reader who knows nothing about the candidate: introduce every project, company and tool in plain words (what it is and why it exists) before any detail, in full sentences with cause and effect; never open a line with a bare name, a link or a 'Problem:/How:' label. If the context is thin, write less rather than pad.
 ```
 
 **Added when it applies** (`prompts.EMAIL_PROBLEM`)
@@ -481,4 +498,6 @@ Propose, in 2-3 sentences, what the person would do about it, grounded in what t
 | Type | What | To |
 |---|---|---|
 | SQLite | replies: confirmation · next step · interview · offer · rejected | outside |
-| SQLite | applications.stage → Applied tab | outside |
+| SQLite | Applied tab: submitted (with its confirmation email) · in progress · failed (with the reason) | outside |
+
+> A receipt's 'if you are not selected' is not a rejection; newsletters and job alerts are never matched to an application.

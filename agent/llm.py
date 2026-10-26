@@ -161,6 +161,14 @@ def shorten_long(content: dict) -> None:
                                        "the object and every number; cut the least important detail.", "resume").strip()
 
 
+_STOPW = set("the a an and or of to in on for with by from as at into across over each every its their our your this that these those "
+              "was were is are be been being which who whom whose so than then also both one".split())
+
+
+def _content_words(t: str) -> set[str]:
+    return {w.rstrip("s") for w in re.findall(r"[a-z][a-z\-]{2,}", (t or "").lower()) if w not in _STOPW}
+
+
 def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
     """Reword the picked lines in the posting's vocabulary and order them by its requirements; facts unchanged.
     Returns the content and notes (requirements covered, gaps)."""
@@ -174,12 +182,24 @@ def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
     by_org = {e.org: e.bullets for e in out.experience}
     NUMW = r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?)\b"
     nums = lambda t: set(re.findall(r"\d[\d,.]*\+?%?", t)) | {w.lower() for w in re.findall(NUMW, t, re.I)}
-    CLAIMS = r"\b(deployed|adopted|adoption|rolled out|in production|alongside|scaled to)\b"
+    CLAIMS = r"\b(deployed|adopted|adoption|rolled out|in production|alongside|scaled to|playtest\w*|a/b test\w*|shipped to|launched to)\b"
     claims = lambda t: {w.lower() for w in re.findall(CLAIMS, t, re.I)}
+    post = _content_words((job.get("title") or "") + " " + (job.get("description") or ""))
+    def keep_true(new_lines: list[str], old_lines: list[str]) -> list[str]:
+        """Each rewritten line against its closest original: a rewrite may swap words for the posting's, never grow. More
+        than one new word from outside the posting, or any net growth in content words, puts the original line back."""
+        out = []
+        for t in new_lines:
+            orig = max(old_lines, key=lambda o: len(_content_words(o) & _content_words(t)), default=t)
+            extra = _content_words(t) - _content_words(orig) - post
+            grew = len(_content_words(t) - _content_words(orig)) - len(_content_words(orig) - _content_words(t))
+            out.append(t if len(extra) <= 1 and grew <= 0 else orig)   # reword, never add (posting words included)
+        return out
     for e in new.get("experience", []):
         b = by_org.get(e["org"])
         if not b:
             continue
+        b = keep_true(b, [x["text"] for x in e["bullets"]])
         old_nums = nums(" ".join(x["text"] for x in e["bullets"]))
         old_text = " ".join(x["text"] for x in e["bullets"])
         if not nums(" ".join(b)) <= old_nums or not claims(" ".join(b)) <= claims(old_text):
@@ -187,7 +207,8 @@ def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
         e["bullets"] = [{"text": t, "provenance": "adapted", "link_text": "", "link": ""} for t in b]
     blurbs = {p.name: p.blurb for p in out.projects}
     for p in new.get("projects", []):
-        if blurbs.get(p["name"]) and nums(blurbs[p["name"]]) <= nums(p["blurb"]) and claims(blurbs[p["name"]]) <= claims(p["blurb"]):
+        if (blurbs.get(p["name"]) and nums(blurbs[p["name"]]) <= nums(p["blurb"]) and claims(blurbs[p["name"]]) <= claims(p["blurb"])
+                and keep_true([blurbs[p["name"]]], [p["blurb"]])[0] == blurbs[p["name"]]):
             p["blurb"] = blurbs[p["name"]]; p["provenance"] = "adapted"
     shorten_long(new)
     return new, ["requirements: " + "; ".join(out.requirements)] + (["not covered: " + "; ".join(out.gaps)] if out.gaps else [])

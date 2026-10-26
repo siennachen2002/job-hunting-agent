@@ -94,6 +94,8 @@ def assemble(lens: str, sector: str | None = None, n_entries: int = 4, n_project
                 return (2 if x[1] & want else 0) + 0.35 * min(len(w - covered if cover else w), 8) - 0.5 * verbs[x[0].split()[0]]
             pool.sort(key=score, reverse=True)
             text, tags = pool.pop(0)
+            if len(out) >= 2 and not (tags & want) and len(_words(text) & post_words) < 4:
+                break   # two good lines beat four with filler: no line from another lens that barely touches the posting
             if verbs[text.split()[0]] >= 2 and len(pool) >= k - len(out):
                 continue
             out.append((text, tags)); verbs[text.split()[0]] += 1
@@ -124,7 +126,12 @@ def assemble(lens: str, sector: str | None = None, n_entries: int = 4, n_project
     creative_role = lens in CREATIVE_FAMILIES or sector in CREATIVE_SECTORS or bool(
         re.search(r"creative|game|art director|motion|technologist|illustrat|visual|brand|graphic|interactive|3d", posting_title or posting_text[:60], re.I))
 
+    # a game or player-facing role, by what the posting talks about, not only its title ("Product Designer, Player Experiences")
+    game_role = len(re.findall(r"\bgam(?:e|es|ing|er|ers)\b|\bplayers?\b|game studios?", posting_text, re.I)) >= 3
+    creative_role = creative_role or game_role
     priority = set(prof.get("creative_priority_projects") or []) if creative_role else set()
+    if game_role:
+        priority |= creative_only   # the game projects lead the projects section
 
     def relevance(lines):
         tags = sum(2 if t & want else (1 if t & also else 0) for _, t in lines)
@@ -139,8 +146,11 @@ def assemble(lens: str, sector: str | None = None, n_entries: int = 4, n_project
             continue  # game-design projects go only on creative résumés
         if any(name in a for a in prof.get("awards") or []):
             continue  # already on the page under Awards
-        matching = [(t, tags) for t, tags in lines if tags & want] or [(t, tags) for t, tags in lines if tags & also]
-        text = sorted(matching, key=lambda x: verbs[x[0].split()[0]])[0][0]
+        matching = (lines if game_role and name in creative_only else
+                    [(t, tags) for t, tags in lines if tags & want] or [(t, tags) for t, tags in lines if tags & also])
+        # the line closest to the posting, not just the first that fits the lens (a game role wants the game, not its interviews)
+        text = sorted(matching, key=lambda x: (-(len(post_words & _words(x[0])) + (8 if game_role and re.search(r"narrative game|characters", x[0], re.I) else 0)),
+                                               verbs[x[0].split()[0]]))[0][0]
         verbs[text.split()[0]] += 1
         projects.append({"name": name, "blurb": text, "link": PROJECT_LINKS.get(name, ""), "provenance": "master"})
         if len(projects) >= n_projects:
