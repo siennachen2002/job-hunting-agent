@@ -920,11 +920,11 @@ def chat_history():
     d = CHAT.get("find")
     if d is not None and hasattr(d, "poll") and d.poll() is not None:
         CHAT.pop("find"); before = CHAT.pop("find_after", 0)
-        made = rows("SELECT j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id > ? ORDER BY a.id", before)
-        chat.add("agent", ("Ready for review: " + "; ".join(f"{m['company']} · {m['title']}" for m in made) +
-                           (". Résumé written and the real form filled" if len(made) == 1 else ". Résumés written and the real forms filled") +
-                           "; open Job applications → Waiting for review.") if made
-                 else "Couldn't find a job above a 50% match this time; see data/find-jobs.log.")
+        made = rows("SELECT a.id app_id, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id > ? ORDER BY a.id", before)
+        if made:   # not a message: a button per application that opens it for review
+            chat.add("agent", "", action="review", apps=made)
+        else:
+            chat.add("agent", "Couldn't find a job above a 50% match this time; see data/find-jobs.log.")
     proc = TELL.get("proc")
     if CHAT.get("learn") and not (proc and proc.poll() is None):
         CHAT.pop("learn")

@@ -211,6 +211,7 @@
   .msg.you { align-self:flex-end; background:var(--ink); color:var(--surface); border-bottom-right-radius:4px; }
   .msg.agent { align-self:flex-start; background:var(--sunk); color:var(--ink); border-bottom-left-radius:4px; }
   .msg .mf { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px; } .msg.you .attached { background:color-mix(in srgb, var(--surface) 18%, transparent); color:inherit; }
+  .ready { display:flex; flex-direction:column; align-items:flex-start; gap:6px; } .readybtn { max-width:100%; } .readybtn span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .msg .act { display:flex; gap:8px; align-items:center; margin-top:10px; } .msg .act select { width:auto; padding:6px 10px; font-size:13px; }
   .msg.typing { display:flex; gap:4px; padding:12px 14px; } .msg.typing span { width:6px; height:6px; border-radius:50%; background:var(--mute); animation:blink 1.2s infinite; }
   .msg.typing span:nth-child(2) { animation-delay:.2s; } .msg.typing span:nth-child(3) { animation-delay:.4s; }
@@ -763,7 +764,12 @@ async function pick(list) {
   picked = picked.concat(await Promise.all(Array.from(list || []).map(read))); render();
 }
 let CHATN = 0, SENDING = null, chatPoll = null;
-const bubble = (m, i, all) => `<div class="msg ${m.role}">${m.files && m.files.length ? `<div class="mf">${m.files.map(f => `<span class="attached">${I.clip}<span>${esc(f)}</span></span>`).join('')}</div>` : ''}${m.text ? `<div class="mt">${esc(m.text)}</div>` : ''}${m.action === 'find_jobs' ? findJobsCtl(all && i < all.length - 1) : ''}</div>`;
+const bubble = (m, i, all) => m.action === 'review' ? reviewButtons(m) : `<div class="msg ${m.role}">${m.files && m.files.length ? `<div class="mf">${m.files.map(f => `<span class="attached">${I.clip}<span>${esc(f)}</span></span>`).join('')}</div>` : ''}${m.text ? `<div class="mt">${esc(m.text)}</div>` : ''}${m.action === 'find_jobs' ? findJobsCtl(all && i < all.length - 1) : ''}</div>`;
+// prepared applications: one button each, straight to it in Job applications → Waiting for review
+function reviewButtons(m) {
+  return `<div class="ready">${(m.apps || []).map(a => `<button class="btn primary readybtn" onclick="openReview(${a.app_id})">${I.check}<span>Review ${esc(a.company)} · ${esc(a.title)}</span>${I.arrow || '→'}</button>`).join('')}</div>`;
+}
+function openReview(id) { tab = 'jobs'; sub = 'review'; sel.review = id; mobileOpen = true; render().then(() => window.scrollTo(0, 0)); }
 // after the storybook: the person decides when to look for jobs, and how many
 function findJobsCtl(used) {
   return used ? '' : `<div class="act"><select id="find-n">${[1, 2, 3, 4, 5].map(n => `<option value="${n}">${n} job${n > 1 ? 's' : ''}</option>`).join('')}</select>

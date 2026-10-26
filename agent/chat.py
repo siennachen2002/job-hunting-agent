@@ -18,10 +18,11 @@ def load() -> list[dict]:
         return []
 
 
-def add(role: str, text: str, files: list[str] | None = None, action: str | None = None) -> dict:
-    """role: 'you' or 'agent'. action: a control the page shows under the message (e.g. 'find_jobs')."""
+def add(role: str, text: str, files: list[str] | None = None, action: str | None = None, **data) -> dict:
+    """role: 'you' or 'agent'. action: a control the page shows instead of or under the message ('find_jobs', 'review');
+    data: what that control needs (e.g. apps=[{app_id, company, title}])."""
     msgs = load()
-    m = {"role": role, "text": text, "at": db.now(), **({"files": files} if files else {}), **({"action": action} if action else {})}
+    m = {"role": role, "text": text, "at": db.now(), **({"files": files} if files else {}), **({"action": action} if action else {}), **data}
     msgs.append(m)
     _path().write_text(json.dumps(msgs[-200:], ensure_ascii=False, indent=1), encoding="utf-8")
     return m
