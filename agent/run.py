@@ -346,9 +346,36 @@ POOL = re.compile(r"join our (network|talent)|talent (community|pool|network)|ge
                   r"don'?t see|open application|expression of interest", re.I)
 
 
+def find_jobs(con, n: int = 1, boards: int = 12) -> list[int]:
+    """Started by the person from the Storybook chat once the storybook is ready: prepare the n best-fitting jobs.
+    A demo account reads its demo boards first; your own account picks from postings already found and ranked."""
+    if config.is_demo():
+        return [a for a in [demo_one(con, boards)] + [demo_next(con) for _ in range(n - 1)] if a]
+    made = []
+    rows = con.execute("SELECT id, title, COALESCE(jev_p*100, score, kw_score*100) m FROM jobs WHERE status IN ('queued','new') "
+                       "AND source IN ('greenhouse','lever','ashby') ORDER BY m DESC LIMIT ?", (n * 4,)).fetchall()
+    for r in rows:
+        if len(made) >= n:
+            break
+        if POOL.search(r["title"] or "") or (r["m"] is not None and r["m"] < 50):
+            continue
+        try:
+            made.append(compose_job(con, r["id"]))
+        except SystemExit:
+            continue
+    return made
+
+
+def demo_next(con) -> int | None:
+    """The next best posting already read and ranked in this demo account."""
+    top = con.execute("SELECT id FROM jobs WHERE status='new' AND source IN ('greenhouse','lever','ashby') "
+                      "ORDER BY COALESCE(jev_p, -1) DESC, kw_score DESC LIMIT 1").fetchone()
+    return compose_job(con, top["id"]) if top else None
+
+
 def demo_one(con, boards: int = 12) -> int | None:
-    """The live demo: right after the storybook, find ONE job that fits and prepare it. A handful of boards, read in
-    parallel; Jev (or keywords) ranks; the best real posting (no talent pools) gets a résumé and a filled form."""
+    """The live demo: find ONE job that fits and prepare it. A handful of boards, read in parallel; Jev (or keywords)
+    ranks; the best real posting (no talent pools) gets a résumé and a filled form."""
     import concurrent.futures as cf
     from . import setup_answers
     if config.is_demo() and setup_answers.missing():   # the fictional applicant's blanks come from the sample answers
@@ -471,6 +498,7 @@ def main(argv=None):
     sub.add_parser("intake")
     cj = sub.add_parser("compose"); cj.add_argument("job_id", type=int)
     sub.add_parser("demo-one")   # the live demo: one fitting job, résumé and filled form
+    fj = sub.add_parser("find-jobs"); fj.add_argument("--n", type=int, default=1)   # started from the Storybook chat
     sub.add_parser("learn")
     rq = sub.add_parser("replies-query"); rq.add_argument("--days", type=int, default=3)
     ri = sub.add_parser("replies-ingest"); ri.add_argument("file")
@@ -566,6 +594,8 @@ def main(argv=None):
             submit_approved(con, app_id=a.app)
         elif a.cmd == "prepare":
             print("\n".join(prepare(con, a.limit)) or "nothing to prepare")
+        elif a.cmd == "find-jobs":
+            print("applications", find_jobs(con, max(1, min(5, a.n))))
         elif a.cmd == "demo-one":
             print("application", demo_one(con))
         elif a.cmd == "compose":

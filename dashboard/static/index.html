@@ -211,6 +211,7 @@
   .msg.you { align-self:flex-end; background:var(--ink); color:var(--surface); border-bottom-right-radius:4px; }
   .msg.agent { align-self:flex-start; background:var(--sunk); color:var(--ink); border-bottom-left-radius:4px; }
   .msg .mf { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px; } .msg.you .attached { background:color-mix(in srgb, var(--surface) 18%, transparent); color:inherit; }
+  .msg .act { display:flex; gap:8px; align-items:center; margin-top:10px; } .msg .act select { width:auto; padding:6px 10px; font-size:13px; }
   .msg.typing { display:flex; gap:4px; padding:12px 14px; } .msg.typing span { width:6px; height:6px; border-radius:50%; background:var(--mute); animation:blink 1.2s infinite; }
   .msg.typing span:nth-child(2) { animation-delay:.2s; } .msg.typing span:nth-child(3) { animation-delay:.4s; }
   @keyframes blink { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
@@ -721,7 +722,7 @@ async function renderStorybook(p) {
   p.innerHTML = `<div class="ph"><div><h1>Storybook</h1><p class="sub">Everything your agent knows about you. Tell it what to change.</p></div></div>
     <div class="tell">
       <div class="composer ${ch.messages.length || SENDING ? 'chatting' : ''}">${ch.messages.length || SENDING ? `<div class="chat-h"><h2>Your agent</h2><button class="lk" onclick="clearChat()">Clear</button></div>
-        <div class="chat" id="chat">${ch.messages.map(bubble).join('')}${SENDING ? bubble(SENDING) : ''}${ch.working || SENDING ? '<div class="msg agent typing"><span></span><span></span><span></span></div>' : ''}</div>` : '<h2>What should your agent know?</h2>'}
+        <div class="chat" id="chat">${ch.messages.map((m, i, all) => bubble(m, i, all)).join('')}${SENDING ? bubble(SENDING) : ''}${ch.working || SENDING ? '<div class="msg agent typing"><span></span><span></span><span></span></div>' : ''}</div>` : '<h2>What should your agent know?</h2>'}
         <textarea id="ask" placeholder="Tell it about you, or drop your résumé: your storybook and standing answers fill themselves. Type, or tap the mic and talk."></textarea>
         <div class="try">${examples.map(x => `<button class="pill" onclick="useEx('${x}')">${x}?</button>`).join('')}</div>
         <div class="bar">${picked.map((f, i) => `<span class="attached">${I.clip}<span>${esc(f.name)}</span><button onclick="picked.splice(${i},1);render()" title="Remove">${I.x}</button></span>`).join('')}
@@ -762,7 +763,18 @@ async function pick(list) {
   picked = picked.concat(await Promise.all(Array.from(list || []).map(read))); render();
 }
 let CHATN = 0, SENDING = null, chatPoll = null;
-const bubble = m => `<div class="msg ${m.role}">${m.files && m.files.length ? `<div class="mf">${m.files.map(f => `<span class="attached">${I.clip}<span>${esc(f)}</span></span>`).join('')}</div>` : ''}${m.text ? `<div class="mt">${esc(m.text)}</div>` : ''}</div>`;
+const bubble = (m, i, all) => `<div class="msg ${m.role}">${m.files && m.files.length ? `<div class="mf">${m.files.map(f => `<span class="attached">${I.clip}<span>${esc(f)}</span></span>`).join('')}</div>` : ''}${m.text ? `<div class="mt">${esc(m.text)}</div>` : ''}${m.action === 'find_jobs' ? findJobsCtl(all && i < all.length - 1) : ''}</div>`;
+// after the storybook: the person decides when to look for jobs, and how many
+function findJobsCtl(used) {
+  return used ? '' : `<div class="act"><select id="find-n">${[1, 2, 3, 4, 5].map(n => `<option value="${n}">${n} job${n > 1 ? 's' : ''}</option>`).join('')}</select>
+    <button class="btn primary sm" onclick="startFind(this)">Find matching jobs</button></div>`;
+}
+async function startFind(b) {
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>Starting…';
+  const r = await post('/api/find-jobs', {n: +$('#find-n').value});
+  if (r && r.ok === false) toast(r.msg);
+  render(); watchChat();
+}
 async function tellAgent() {
   const text = $('#ask').value.trim(); if (!text && !picked.length) return;
   const files = picked; SENDING = {role: 'you', text, files: files.map(f => f.name)}; picked = []; draft = ''; render();

@@ -17,10 +17,11 @@ Taylor Brooks, on real postings at real companies, and sends nothing.
    above it ("I don't need sponsorship and I'm happy to relocate within the US") and press Send. The box turns into a chat:
    the agent says what it is doing, the storybook fills with résumé lines, each naming the file it came from, and the
    standing answers fill themselves. Its last message lists what is still blank; those fields are marked *Not filled yet*.
-   When the storybook is done, the demo goes on by itself: it reads a dozen job boards, ranks the postings, skips talent
-   pools, and prepares the one that fits best (résumé aligned to that posting, the real form filled up to Submit). Blanks
-   in the standing answers are filled from Taylor's sample answers. The chat says when it's ready. Dropping the files
-   to a ready application takes under three minutes (timed at 161 s; Claude Code uses its fast model in demo accounts).
+   When the storybook is done, the chat asks whether to look for jobs: choose how many (1-5) and press **Find matching
+   jobs**. It reads a dozen job boards, ranks the postings, skips talent pools, and prepares the best ones in order
+   (résumé aligned to each posting, the real form filled up to Submit). Blanks in the standing answers are filled from
+   Taylor's sample answers. The chat says when they're ready. For one job, dropping the files to a ready application
+   takes about two minutes (timed at 122 s; Claude Code uses its fast model in demo accounts).
 3. **The blanks.** Say them in the chat ("Gender and race: prefer not to say, hybrid is fine, not a veteran"), or
    Setup → *Answer the standing questions* → **Use the sample answers** fills every one at once.
 4. **Find jobs.** Press **Refresh** (bottom left). It reads the public job boards of the companies on the watchlist
