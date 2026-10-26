@@ -225,6 +225,8 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
     for a in con.execute(q, (app_id,) if app_id else ()).fetchall():
         a = dict(a); j = dict(con.execute("SELECT * FROM jobs WHERE id=?", (a["job_id"],)).fetchone())
         aj = json.loads(a["answers_json"] or "{}")
+        if re.search(r"\[YOUR ANSWER", json.dumps(aj) + (a.get("email_body") or "") + (a.get("cover_text") or ""), re.I):
+            print(f"  app {a['id']} {j['company']}: still has a [YOUR ANSWER] blank, skipped"); continue
         if aj.get("needs_human"):
             print(f"  app {a['id']} {j['company']}: still has unanswered questions, skipped"); continue
         if not still_open(j):
@@ -307,6 +309,7 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
             d = llm.draft_email("application", j["company"], (j.get("description") or "") + "\n\nFollow any application instructions in the posting exactly.")
             asks = re.search(r"what you'?ve built|things you'?ve built|tell us (about|how)|how it works|what you'?d change|write[- ]?up", j.get("description") or "", re.I)
             body, vnotes = llm.clean_text(d.body, "email_writeup" if asks else "email")
+            body = llm.check_changes(body, j)   # an invented "what I'd change" becomes a question for you
             from .links import to_markdown_links
             db.update_application(con, a["id"], kind="email", status="pending_approval", answers_json="{}", email_to=emails[0],
                                   email_subject=d.subject, email_body=to_markdown_links(body),
@@ -451,6 +454,10 @@ def compose_job(con, job_id: int) -> int:
             llm.shorten_long(content)   # two lines per bullet, even without the alignment
         except Exception:
             pass
+    try:
+        content["summary"] = llm.write_summary(job, content)   # the story, for this posting; empty if it can't be kept true
+    except Exception:
+        pass
     pdf, rendered, scale = render_one_page(content, f"{config.file_stem()}_{job['company']}_{job_id}", role_family=lens,
                                            sector=job.get("sector"), posting_title=job.get("title"))
     app_id = db.create_application(con, job_id=job_id, kind="ats_web" if job["source"] in ("greenhouse", "lever", "ashby") else "manual",

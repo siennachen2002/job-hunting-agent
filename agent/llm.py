@@ -162,7 +162,8 @@ def shorten_long(content: dict) -> None:
 
 
 _STOPW = set("the a an and or of to in on for with by from as at into across over each every its their our your this that these those "
-              "was were is are be been being which who whom whose so than then also both one".split())
+              "was were is are be been being which who whom whose so than then also both one would should could will can "
+              "change next add make more first".split())
 
 
 def _content_words(t: str) -> set[str]:
@@ -212,6 +213,47 @@ def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
             p["blurb"] = blurbs[p["name"]]; p["provenance"] = "adapted"
     shorten_long(new)
     return new, ["requirements: " + "; ".join(out.requirements)] + (["not covered: " + "; ".join(out.gaps)] if out.gaps else [])
+
+
+class Summary(BaseModel):
+    text: str
+
+
+def write_summary(job: dict, content: dict) -> str:
+    """Two or three sentences at the top of the résumé, for this posting. Only what the page and the storybook say:
+    a summary that brings in more than two content words from outside them (or the posting's nouns) is dropped."""
+    from .voicecheck import lint, report
+    lines = [b["text"] for e in content.get("experience", []) for b in e.get("bullets", [])] + [p["blurb"] for p in content.get("projects", [])]
+    heads = [f"{e['org']} · {e.get('role', '')}" for e in content.get("experience", [])] + [f"{e.get('school')} · {e.get('degree')}" for e in config.profile().get("education") or []]
+    body = (f"## POSTING\n{job.get('title')} at {job.get('company')}\n{(job.get('description') or '')[:5000]}\n\n"
+            f"## ROLES\n" + "\n".join(heads) + "\n\n## RÉSUMÉ LINES\n" + "\n".join(lines))
+    known = _content_words(" ".join(lines + heads + [config.master_text()[:60000], job.get("title") or ""]))   # the record, not the posting
+    ask = body
+    for _ in range(2):
+        text = structured(_system(P.SUMMARY.format(first_name=config.first_name())), ask, Summary, effort="medium", max_tokens=800).text.strip()
+        for _ in range(2):
+            hard = [i for i in lint(text, "summary") if i.level == "hard"]
+            if not hard:
+                break
+            text = repair_text(text, report(hard) + "\nKeep it at most 45 words, résumé register, same facts.", "summary").strip()
+        extra = _content_words(text) - known
+        if len(extra) <= 1 and not any(i.level == "hard" for i in lint(text, "summary")):
+            return text
+        ask = body + f"\n\nYour last draft used words the record doesn't support ({', '.join(sorted(extra)[:8])}). Use only what these lines say."
+    return ""   # better no summary than one that says something the record doesn't
+
+
+def check_changes(text: str, job: dict) -> str:
+    """'What I'd change' / 'Next I would…' sentences must come from the record; one that doesn't becomes a placeholder."""
+    known = _content_words(config.master_text()[:80000])
+    out = []
+    for sent in re.split(r"(?<=[.!?])\s+", text):
+        if re.search(r"\b(what i'?d change|i would change|i'?d change|next,? i would|next i'?d|i would add|i'?d add)\b", sent, re.I) \
+                and len(_content_words(sent) - known) > 0:
+            out.append("[YOUR ANSWER: what you'd change]")
+        else:
+            out.append(sent)
+    return " ".join(out)
 
 
 def revise_resume(job: dict, current: dict, instruction: str) -> ResumeContent:

@@ -34,26 +34,18 @@ RANK = ("Judge whether {first_name} is a credible candidate for this posting, as
         "Work authorisation is settled, so it is never a blocker. Role families: {roles}")
 
 # 03 · a posting → the résumé and the answers
-TAILOR = ("Build the one-page résumé content for this posting through the matching lens in 06-roles.md. "
-          "First list the posting's core requirements; the two most recent roles must cover all of them on their own, "
-          "with older roles and projects only reinforcing. Drop recent work that serves none of them. "
-          "Mark each item's provenance honestly; 'new' items must stay under {diy_max}. "
-          "Where a piece of work has a URL in the master documents, set link_text and link.")
+TAILOR = ("Build the one-page résumé for this posting through its lens in 06-roles.md, following the brief's résumé shape. "
+          "Mark provenance honestly; 'new' items stay under {diy_max}. Where a piece of work has a URL in the master documents, "
+          "set link_text and link.")
 
-ALIGN = ("Align this one-page résumé to the posting. First list the posting's 5-8 core requirements in its own words. Then rewrite "
-         "every bullet and project blurb so a reader of this posting recognises their requirements: lead with the outcome or capability "
-         "the posting asks for, use the posting's own nouns and requirement names where they truthfully describe the work (their word "
-         "for the role, the activity, the user, the tool), but never its sentence rhythm or adjectives: plain verbs, the person's own "
-         "voice, so this résumé doesn't read like everyone else's. Where a requirement names a domain or a length of experience, "
-         "state it explicitly if the record supports it. Use any one posting term at most three times on the page. Order bullets inside each entry by how directly they answer the requirements. The two most "
-         "recent roles must cover every core requirement between them. Facts are fixed: keep every number, employer, client, title, date "
-         "and tool exactly as given; never add a tool, metric, client, result or responsibility that isn't already there, and never add "
-         "what happened next or around it (deployed, adopted, drove adoption, rolled out, alongside a named person, a count in words), "
-         "and never attach the posting's words as new detail (a platform, a tool, a cadence, a method the line doesn't state); "
-         "change the framing and the words, never the facts. If a "
-         "requirement isn't supported, leave it uncovered and name it in gaps. Keep each bullet to one achievement in at most two lines "
-         "(200 characters including spaces), "
-         "opening verbs varied. Keep entries, projects and their order as given.")
+ALIGN = ("Align these résumé lines to the posting. List its 5-8 core requirements in its own words. Then reword each bullet and "
+         "blurb in the posting's nouns where they truthfully fit, outcome first, and order bullets by the requirements. Reword, "
+         "never add: facts are fixed, and a requirement the lines don't support stays uncovered, named in gaps. "
+         "Keep entries, projects and their order.")
+
+SUMMARY = ("Write the résumé summary for this posting: two or three short sentences, at most 45 words, that tell {first_name}'s "
+           "story and sell {first_name} for this role. The field and the kind of work first, then the strongest evidence from these "
+           "résumé lines, then what {first_name} brings to this role. Résumé register: no 'I', no clichés, only facts on the page.")
 
 REVISE = ("Revise this one-page résumé as the person asks. Change only what the note asks for; keep everything else as it is. "
           "Facts, numbers, titles and dates come from the master documents only: if the note asks for something they don't "
@@ -63,39 +55,21 @@ REPAIR = "Rewrite the text to fix the listed problems. Same facts, same or short
 
 ANSWERS = "Answer this application form. Anything only {first_name} can answer goes in needs_human with a short reason."
 
-WHY_US = ("For a why-us question or cover letter (why this company, why this role, what excites you about us): write about the "
-          "company's culture and this role, never a description of their product (they know their product). Open with one specific "
-          "thing about how the company works or what it values, in its own words from the posting or the mission notes (a principle, "
-          "a way of working, a stated belief), and why that suits how the candidate works. Now and then, when the company has stated "
-          "where it is heading in the next year or two (in the posting or the mission notes), name that near-term vision and the part "
-          "this role plays in it. Then the role: what this team is asking the "
-          "person in the seat to do, and the candidate's fit for exactly that, shown through one short story from the record, not "
-          "adjectives (07-voice.md for character and habits). Never open with the candidate or 'I am writing'. Swap test: delete any "
-          "sentence that would still be true with another company's name in it. Don't summarize the résumé, don't list what the "
-          "candidate wants from the job, use a number only if the master documents give it. Let real enthusiasm show, never claim it "
-          "(no 'passionate'). Professional register: personality shows in what the candidate noticed, decided and built, and a "
-          "well-placed joke is welcome; casual filler ('I love that', 'I'd love to', 'a lot of') is not. Every sentence must say "
-          "something specific in precise words: no empty contrasts like 'as something you design for, not something that just "
-          "happens'. Name things with noun phrases, not wh-clauses: 'nearby friends', not 'who is around'; 'its place in the "
-          "workflow', not 'where it sits'. No colons and no em dashes; write full sentences. Hype words are not welcome.")
+WHY_US = ("This is a cover letter or why-us answer: follow the brief's shape for them. Draw the company's culture, values and "
+          "stated near-term direction from the posting and the mission notes, in their own words; never describe their product. "
+          "Never open with the candidate or 'I am writing'.")
 
-EMAIL = ("Write a {kind} email from {first_name} to this company. Shape: one line on why this role, hinged on one concrete thing "
-         "in the context; then what {first_name} can do and has done, as capabilities backed by experience (role, client, result), "
-         "not a walkthrough of how a project works; then why that is an unusually close match for this role, said plainly; one light "
-         "sentence of ambition (what they want to grow into here); end with a complete, polite sentence asking for a 20-minute conversation (e.g. 'Would you have 20 minutes in the next week or two to talk about the role?'), never a fragment like 'Worth 20 minutes?'. "
-         "If the employer asked for specific write-ups (e.g. things you've built: the problem, how it works, what you'd change), "
-         "answer every part they asked for, for each one, in connected sentences: what it is and the problem it solves, how it "
-         "works, what the candidate would change. Never invent the change: if the documents don't give one, write [YOUR ANSWER: …]. "
-         "Write for a reader who knows nothing about the candidate: introduce every project, company and tool in plain words "
-         "(what it is and why it exists) before any detail, in full sentences with cause and effect; never open a line with a bare "
-         "name, a link or a 'Problem:/How:' label. If the context is thin, write less rather than pad.")
+EMAIL = ("Write a {kind} email from {first_name} to this company, following the brief's email shape. Write for a reader who "
+         "knows nothing about {first_name}: say what each project is and why it exists before any detail. If the employer asks "
+         "for write-ups, answer every part for each one in sentences; what {first_name} would change must come from the documents, "
+         "else write [YOUR ANSWER: …]. "
+         "If the context is thin, write less.")
 
 EMAIL_PROBLEM = "Propose, in 2-3 sentences, what the person would do about it, grounded in what they have actually done."
 
-COVER = ("Draft a cover letter and a 'Why {company}' answer for {first_name}, following the why-us rule: concrete mission first, "
-         "one story, swap test on every sentence. Use only storybook facts "
-         "and what the posting or research says about the company. If the employer requires the candidate's own first draft, "
-         "leave both fields empty and explain in needs_human.")
+COVER = ("Draft a cover letter and a 'Why {company}' answer for {first_name}, following the brief's cover-letter shape, from "
+         "the storybook and what the posting or research says about the company. If the employer requires the candidate's own "
+         "first draft, leave both empty and explain in needs_human.")
 
 # 08 · your notes → proposed fixes
 LEARN = ("Propose the smallest patches that would have prevented each problem. Prefer one example row in the brief over a new rule; "

@@ -228,8 +228,28 @@ def standing_put(s: Standing):
     return {"ok": True, "missing": sa.missing(v)}
 
 
+BLANK = re.compile(r"\[YOUR ANSWER", re.I)
+
+
+def _blanks(a: dict) -> list[str]:
+    """Where an application still has a [YOUR ANSWER …] placeholder: it can't be approved until each one is filled."""
+    aj = json.loads(a.get("answers_json") or "{}") if (a.get("answers_json") or "").startswith("{") else {}
+    where = []
+    if BLANK.search((a.get("email_body") or "") + (a.get("email_subject") or "")):
+        where.append("the email")
+    if BLANK.search(a.get("cover_text") or ""):
+        where.append("the cover letter")
+    where += [f"'{x['question'][:60]}'" for x in aj.get("answers", []) if BLANK.search(x.get("answer") or "")]
+    return where
+
+
 @app.post("/api/applications/{app_id}/approve")
 def approve(app_id: int, d: Decision | None = None):
+    with db.tx() as con:   # a [YOUR ANSWER] placeholder must never reach an employer
+        row = con.execute("SELECT * FROM applications WHERE id=?", (app_id,)).fetchone()
+        blanks = _blanks(dict(row)) if row else []
+    if blanks:
+        return {"ok": False, "msg": "Fill in the [YOUR ANSWER] blank in " + ", ".join(blanks) + " before approving."}
     from agent.audit import log
     from agent.setup_answers import missing
     if missing():
@@ -649,7 +669,7 @@ def board(tab: str = "review"):
                         "replies": [dict(x) for x in con.execute("SELECT kind, at, sender, subject, snippet, view_url FROM replies WHERE app_id=? ORDER BY at DESC", (a["id"],)).fetchall()] if tab == "applied" else [],
                         "needs": aj.get("needs_human") or [], "needs_options": aj.get("needs_options") or {}, "has_shot": "screenshot:" in (a.get("sent_log") or ""),
                         "email_to": a.get("email_to"), "email_subject": a.get("email_subject"), "email_body": a.get("email_body"),
-                        "sent_at": a.get("sent_at") or a.get("approved_at"), "error": a.get("error") or "",
+                        "sent_at": a.get("sent_at") or a.get("approved_at"), "error": a.get("error") or "", "blanks": _blanks(a),
                         "submitting": _submitting(a["id"])})
     if tab == "review":
         out.sort(key=lambda c: -(c["match"] if c["match"] is not None else -1))

@@ -93,7 +93,8 @@ NODES = [
                 ("PNG", "out/resumes/<name>.png (preview)", "review")],
          note="Picks the true lines for the role, then words them in the posting's nouns (never its prose) and orders them by its "
               "requirements; the two newest roles cover every core requirement. Facts never change: a new number or outcome keeps the original line. Two lines per bullet at most. "
-              "The template: header links are words (Website · LinkedIn · GitHub), and every place, roles and schools alike, names its country."),
+              "The template: header links are words (Website · LinkedIn · GitHub), and every place, roles and schools alike, names its country. "
+              "A two-to-three-sentence summary sells you for this role (prompt SUMMARY), from the page's own facts or not at all."),
     dict(id="check", step="03", name="Writing check", lane="agent", runs="model", prompt="REPAIR", schema="Repaired",
          code="agent/voicecheck.py (rules) · agent/llm.py · repair_text",
          reads=[("Text", "every bullet, answer and email", ["tailor", "answers", "email"]),
@@ -123,7 +124,7 @@ NODES = [
          reads=[("SQLite", "posting + research notes", "rank"),
                 ("Markdown", "storybook", "storybook")],
          gives=[("Text", "the cover letter: the third document in review, beside the résumé and the form", "review")],
-         note="Any 'why us', 'why this role' or cover-letter question. When the employer wants your own first draft, the card says so and waits."),
+         note="Any 'why us', 'why this role' or cover-letter question. When the employer wants your own first draft, the card says so and waits. A [YOUR ANSWER] blank anywhere keeps Approve off."),
     # ------------------------------------------------------------------ 04 · you decide
     dict(id="review", step="04", name="You review", lane="you", runs="you", code="dashboard → Waiting for review",
          reads=[("PDF", "résumé", "tailor"),

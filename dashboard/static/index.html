@@ -497,7 +497,8 @@ function stageChip(c) {
 
 function queueItem(c) {
   const needs = (c.needs || []).length;
-  const st = sub === 'review' ? (needs ? `<div class="st o"><span class="dot"></span>${needs} ${needs === 1 ? 'question' : 'questions'} for you</div>` : `<div class="st r"><span class="dot"></span>Ready to approve</div>`)
+  const blanks = (c.blanks || []).length;
+  const st = sub === 'review' ? (needs || blanks ? `<div class="st o"><span class="dot"></span>${[needs && `${needs} ${needs === 1 ? 'question' : 'questions'} for you`, blanks && `${blanks} ${blanks === 1 ? 'blank' : 'blanks'} to fill`].filter(Boolean).join(' · ')}</div>` : `<div class="st r"><span class="dot"></span>Ready to approve</div>`)
     : sub === 'applied' ? appliedLine(c)
     : c.preparing === 'running' ? `<div class="st o"><span class="spin"></span>Preparing…</div>` : (c.location ? `<div class="st" style="display:block">${esc(c.location)}</div>` : '');
   const item = `<button class="qi ${keyOf(c) === sel[sub] ? 'on' : ''}" onclick="pickJob(${keyOf(c)})">${mono(c.company)}<div class="t"><div class="c">${esc(c.company)}</div><div class="ti">${esc(c.title)}</div>${st}</div>${ring(c, true)}</button>`;
@@ -600,9 +601,9 @@ function detailApp(c, done) {
         ${done ? '' : ed ? `<span style="display:flex;gap:6px"><button class="btn sm quiet" onclick="editing=false;render()">Cancel</button><button class="btn sm primary" onclick="saveAnswers(${c.app_id}, ${!!c.email_body}, this)">Save</button></span>` : `<button class="btn sm quiet" onclick="editing=true;render()">${I.pen}Edit</button>`}</div>${filled}</div>
     </div>
     <div class="d-foot">${done ? `<span class="stamp">${I.check}${c.status === 'sent' ? 'Sent' : 'Approved'} ${day(c.sent_at)}</span>` : `
-      <button class="btn primary" ${needs.length ? 'disabled' : ''} onclick="decide(${c.app_id},'approve')">${I.check}Approve</button>
+      <button class="btn primary" ${needs.length || (c.blanks || []).length ? 'disabled' : ''} onclick="decide(${c.app_id},'approve')">${I.check}Approve</button>
       <button class="btn danger" onclick="reject(${c.app_id})">Reject</button>
-      <span class="hint">${needs.length ? `Answer the ${needs.length === 1 ? 'question' : needs.length + ' questions'} above to approve.` : ACCTS && ACCTS.demo ? 'Demo account: approving sends nothing. In your own account, it submits this exact form.' : (c.email_body ? 'Approving queues the email; it goes out with the next send.' : 'Approving submits it in a browser window. Nothing goes out before.')}</span>`}</div>`;
+      <span class="hint">${(c.blanks || []).length ? `Fill in the [YOUR ANSWER] blank in ${c.blanks.join(', ')} to approve (Edit).` : needs.length ? `Answer the ${needs.length === 1 ? 'question' : needs.length + ' questions'} above to approve.` : ACCTS && ACCTS.demo ? 'Demo account: approving sends nothing. In your own account, it submits this exact form.' : (c.email_body ? 'Approving queues the email; it goes out with the next send.' : 'Approving submits it in a browser window. Nothing goes out before.')}</span>`}</div>`;
 }
 
 function detailTodo(c) {

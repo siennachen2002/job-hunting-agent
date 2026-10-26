@@ -23,6 +23,10 @@ CASUAL = [r"\bmade\b", r"\bdid\b", r"\bworked on\b", r"\bhelped( with| to)?\b", 
 SMALL_TALK = [r"\bi (really )?love (that|how|the way)\b", r"\bi'?d love to\b", r"\bi would love to\b", r"\bhonestly\b", r"\bfun fact\b",
               r"\bsuper\b", r"\bpretty much\b", r"\ba lot of\b", r"\bsort of\b", r"\blol\b", r"\bhaha\b", r"!",
 r"\bcan'?t wait\b", r"\bdream (job|company|role)\b", r"\bnerd\b", r"\bobsessed\b"]
+SUMMARY_TELLS = [r"\bproven\b", r"\bseasoned\b", r"\bwith a (deep )?passion for\b", r"\bpassion\b", r"\bdynamic\b", r"\bbridg(e|es|ing)\b",
+                 r"\bblend(s|ing)?\b", r"\bleverag\w*", r"\bat the intersection\b", r"\bdriven\b", r"\bkeen eye\b", r"\bthrives?\b",
+                 r"\bhighly\b", r"\bskilled in\b", r"\bexpertise in\b", r"\bdedicated\b", r"\bmotivated\b", r"\bversatile\b",
+                 r"\bholistic\b", r"\bend-to-end\b", r"\bcommitted to\b", r"\beager\b", r"\bstrong background\b", r"\bunique\b"]
 WH = re.compile(r"\b(?:who|where|what|how)(?:'s| is| are| was| it| they| he| she| someone| a| the)\b(?: \w+)?")
 VAGUE = re.compile(r"\bsomething (you|we|that|to|which)\b[^.]{0,60}\b(not|rather than)\b[^.]{0,40}\bsomething\b|"
                    r"\b(not|rather than) something (that )?(just )?(happens|exists|is)\b|, not (just|merely|simply) (a|an|the)?\s*\w+")
@@ -78,6 +82,21 @@ def lint(text: str, kind: str = "resume") -> list[Issue]:
     dashes = text.count("—")
     if dashes > (1 if kind == "email" else 0 if kind in ("answer", "why_us") else 2):
         issues.append(Issue("hard", f"{dashes} em dashes"))
+    if kind == "summary":   # the résumé summary: short, in résumé register, none of the stock LLM openers
+        if len(text.split()) > 50:
+            issues.append(Issue("hard", f"summary is {len(text.split())} words (max 45)"))
+        for pat in SUMMARY_TELLS:
+            m = re.search(pat, low)
+            if m:
+                issues.append(Issue("hard", f"stock phrase '{m.group(0)}'"))
+        if re.search(r"\b(i|i'm|i've|my|me)\b", low):
+            issues.append(Issue("hard", "first person in a résumé summary"))
+        if ":" in text or "—" in text:
+            issues.append(Issue("hard", "colon or em dash in the summary"))
+    if kind in ("email", "email_writeup", "why_us"):   # write-ups in sentences, never "Problem: … How: …" labels
+        m = re.search(r"(^|[.\n]\s*)(problem|how it works|how|what i'?d change|change|solution|result|impact|context)\s*:", low)
+        if m:
+            issues.append(Issue("hard", f"label '{m.group(2)}:'; write it as a sentence"))
     if kind == "why_us":   # cover letters and why-us answers: no colons, no small talk; personality comes from substance
         colons = len(re.findall(r":(?!//)", text))
         if colons:
