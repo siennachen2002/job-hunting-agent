@@ -35,6 +35,8 @@ RANK = ("Judge whether {first_name} is a credible candidate for this posting, as
 
 # 03 · a posting → the résumé and the answers
 TAILOR = ("Build the one-page résumé content for this posting through the matching lens in 06-roles.md. "
+          "First list the posting's core requirements; the two most recent roles must cover all of them on their own, "
+          "with older roles and projects only reinforcing. Drop recent work that serves none of them. "
           "Mark each item's provenance honestly; 'new' items must stay under {diy_max}. "
           "Where a piece of work has a URL in the master documents, set link_text and link.")
 

@@ -40,10 +40,14 @@ def _pages(pdf_path: Path) -> int:
 
 
 def _trim(content: dict) -> bool:
-    """Remove the last bullet of the longest experience entry (or the last project). Returns False if nothing left to trim."""
+    """Remove a bullet from the oldest entry that can spare one (or the last project). Returns False if nothing left to trim.
+    Recent roles must carry the posting's core requirements on their own, so they keep their bullets longest:
+    older entries go down to 2 bullets first, then to 1, before the two most recent lose any."""
     exps = content.get("experience", [])
-    cand = max(exps, key=lambda e: len(e.get("bullets", [])), default=None)
-    if cand and len(cand["bullets"]) > 1:
+    order = list(reversed(exps[2:])) + list(reversed(exps[:2]))
+    cand = next((e for e in order if len(e.get("bullets", [])) > 2), None) or \
+        next((e for e in order if len(e.get("bullets", [])) > 1), None)
+    if cand:
         cand["bullets"].pop()
         return True
     if content.get("projects"):

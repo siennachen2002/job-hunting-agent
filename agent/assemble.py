@@ -80,22 +80,30 @@ def assemble(lens: str, sector: str | None = None, n_entries: int = 4, n_project
     chosen.sort(key=lambda n: ENTRIES[n]["start"], reverse=True)
     from collections import Counter
     verbs: Counter = Counter()
+    post_words = _words(posting_text)
+    covered: set = set()   # posting words the two most recent roles already show
 
-    def pick(cands, k):
-        """Lens-matching lines first; skip a line whose opening verb is already used twice on the page."""
-        out = []
-        for text, tags in sorted(cands, key=lambda x: (0 if x[1] & want else 1, verbs[x[0].split()[0]])):
-            v = text.split()[0]
-            if verbs[v] >= 2 and len(cands) - len(out) > k - len(out):
+    def pick(cands, k, cover=False):
+        """Lens-matching lines that speak to the posting first; skip a line whose opening verb is already used twice.
+        cover=True (the two most recent roles) prefers lines that add posting words not yet on the page, so those
+        roles show every core requirement on their own."""
+        out, pool = [], list(cands)
+        while pool and len(out) < k:
+            def score(x):
+                w = _words(x[0]) & post_words
+                return (2 if x[1] & want else 0) + 0.35 * min(len(w - covered if cover else w), 8) - 0.5 * verbs[x[0].split()[0]]
+            pool.sort(key=score, reverse=True)
+            text, tags = pool.pop(0)
+            if verbs[text.split()[0]] >= 2 and len(pool) >= k - len(out):
                 continue
-            out.append((text, tags)); verbs[v] += 1
-            if len(out) == k:
-                break
+            out.append((text, tags)); verbs[text.split()[0]] += 1
+            if cover:
+                covered.update(_words(text) & post_words)
         return out
 
     experience = []
-    for n in chosen:
-        lines = pick(exp[n], 4)
+    for i, n in enumerate(chosen):
+        lines = pick(exp[n], 4, cover=True) if i < 2 else pick(exp[n], 3)
         bullets = []
         for text, _ in lines:
             lt, url = _linkify(text)
@@ -111,7 +119,6 @@ def assemble(lens: str, sector: str | None = None, n_entries: int = 4, n_project
     if re.search(r"climate|sustainab|carbon|decarboni|ESG|energy", posting_text, re.I):
         also.add("climate")
     also -= want
-    post_words = _words(posting_text)
     from .links import CREATIVE_FAMILIES, CREATIVE_SECTORS
     creative_only = set(prof.get("creative_only_projects") or [])
     creative_role = lens in CREATIVE_FAMILIES or sector in CREATIVE_SECTORS or bool(

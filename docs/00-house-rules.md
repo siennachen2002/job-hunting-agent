@@ -27,9 +27,11 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Made the marketing video in my own editor | Produced the 25-second motion graphics video in CodeCut | Precise verb, named tool, number |
 | Built a BD list of contacts | Built a business-development target database: 226 contacts across 7 segments, each mapped to an offer | Says what it is and how big |
 | Spearheaded a seamless, innovative redesign | Redesigned the site's information architecture from interviews with the founding team | Cliché out, method in |
+| Consulting posting: synthesized four insight clusters into three How Might We questions | Synthesized findings into four insight clusters and three problem statements that framed the engagement | Same facts in the reader's field's words: How Might We is design-thinking vocabulary, consulting says problem statement |
 | Helped with research | Ran 20+ stakeholder interviews across three continents | Who did what, how much |
 | Skills: particle systems, SDF, scroll-driven animation | Creative coding: Three.js, p5.js, WebGL | Skills name tools and disciplines; techniques roll up under them (list techniques only for roles that ask, e.g. generative art) |
 | Built… Built… Designed and built… Designed… (one page) | Architected, shipped, conducted, established, authored | Vary the opening verb; pick the one the field uses for that act |
+| Consulting posting: newest role shows design screens; client interviews and readouts sit in a 2024 entry | Newest two roles carry the client engagement, synthesis, business case and AI evaluation; the 2024 entry adds one supporting line | A reader judges you by what you did last |
 | Selected work | Selected Projects | The section is projects, so name it with the field's word |
 | I am excited to apply… / At Acme I designed… so I want to join Northwind | Northwind's mission is to make the grid run on clean power. I love that it's a mission about plumbing, not slogans… | Why-us answers open with their mission, then why it matters to {name} as a person; experience last, lightly |
 
@@ -37,6 +39,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 
 - Résumé: one page, reverse-chronological, 2-4 bullets per role, each bullet one achievement: action, object, method or result.
   Choose and order material by the role lens in 06-roles.md; the same project reads differently for each role.
+  The two most recent roles must, on their own, show every core requirement in the posting; older roles and projects
+  reinforce, they don't fill gaps. Leave out recent work that doesn't serve this posting, even a current job.
 - Form answers: answer the question asked, 90-150 words for open questions, no URLs in text boxes.
 - Why-us answers: mission first, then personality (what {name} loves doing, how {name} works), experience last. Experience shows fit for the role; the company wants to know fit with them. Warm, a little American energy.
 - Emails: under 120 words (more only if the employer asks for write-ups), one specific reason, one piece of evidence,
