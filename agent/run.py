@@ -343,11 +343,19 @@ def compose_job(con, job_id: int) -> int:
     sc = json.loads(job["score_json"]) if job.get("score_json") else {}
     lens = sc.get("role_family") or "product_design"
     content = assemble(lens, job.get("sector"), posting_text=(job.get("title") or "") + " " + (job.get("description") or ""), posting_title=job.get("title") or "")
+    from . import llm
+    align_notes = []
+    try:   # the storybook's lines, reworded in the posting's vocabulary and ordered by its requirements; facts unchanged
+        content, align_notes = llm.align_resume(job, content)
+        from .voicecheck import lint_resume
+        align_notes += [f"[page] {i.what}" for i in lint_resume(content)]
+    except Exception as e:
+        align_notes = [f"alignment skipped: {str(e)[:120]}"]
     pdf, rendered, scale = render_one_page(content, f"{config.file_stem()}_{job['company']}_{job_id}", role_family=lens,
                                            sector=job.get("sector"), posting_title=job.get("title"))
     app_id = db.create_application(con, job_id=job_id, kind="ats_web" if job["source"] in ("greenhouse", "lever", "ashby") else "manual",
                                    status="draft", needs_approval=1, resume_pdf=str(pdf), resume_json=json.dumps(rendered, ensure_ascii=False),
-                                   diy_ratio=0.0, diy_notes=f"assembled from storybook lines; lens {lens}")
+                                   diy_ratio=0.0, diy_notes=f"assembled from storybook lines; lens {lens}\n-- aligned to the posting\n" + "\n".join(align_notes))
     con.execute("UPDATE jobs SET status='applied_draft' WHERE id=?", (job_id,)); con.commit()
     log(con, "compose", "resume", f"lens {lens}", job_id=job_id, app_id=app_id)
     prepare(con, 1, app_id=app_id)

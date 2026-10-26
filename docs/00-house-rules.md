@@ -36,6 +36,7 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
 | Consulting posting: newest role shows design screens; client interviews and readouts sit in a 2024 entry | Newest two roles carry the client engagement, synthesis, business case and AI evaluation; the 2024 entry adds one supporting line | A reader judges you by what you did last |
 | 1. [CodeCut](link). Problem: motion graphics are mostly code… | I built CodeCut, an open-source video editor where a designer and AI agents edit the same timeline, because every small fix used to mean regenerating the whole video | Say what a thing is and why it exists before any detail; the reader knows nothing yet |
 | Two builds, as you asked: | You asked for one or two things I've built, so here are the two closest to this role. | Full sentences; a clipped lead-in with a colon reads machine-written |
+| (AI Strategist posting) Owned user flows and interaction logic for two of three agents | Scoped and led the user flows for two of three AI agents deployed across Bayer's global divisions, from stakeholder interviews to tested prototypes | Same facts, in the posting's terms: engagement, scope, deployment |
 | Selected work | Selected Projects | The section is projects, so name it with the field's word |
 | I am excited to apply… / At Acme I designed… so I want to join Northwind | Northwind's mission is to make the grid run on clean power. I love that it's a mission about plumbing, not slogans… | Why-us answers open with their mission, then why it matters to {name} as a person; experience last, lightly |
 
@@ -45,6 +46,8 @@ numbers, and say each thing once. In emails, borrow tone from {name}'s own writi
   Choose and order material by the role lens in 06-roles.md; the same project reads differently for each role.
   The two most recent roles must, on their own, show every core requirement in the posting; older roles and projects
   reinforce, they don't fill gaps. Leave out recent work that doesn't serve this posting, even a current job.
+  Then word every line in the posting's own vocabulary where it truthfully fits, and order bullets by its requirements;
+  the facts (numbers, clients, tools, titles) never change.
 - Form answers: answer the question asked, 90-150 words for open questions, no URLs in text boxes.
 - Why-us answers and cover letters are one thing: mission first, made concrete (one thing the company actually built, decided or
   published, and {name}'s honest reaction to it; never a paraphrased slogan), then personality shown through one short story

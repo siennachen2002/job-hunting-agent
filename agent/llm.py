@@ -131,6 +131,54 @@ def tailor_resume(job: dict, score: JobScore | None = None) -> ResumeContent:
     return structured(_system(task), "Build the one-page résumé content for this posting.\n\n" + posting, ResumeContent, effort="high", max_tokens=16000)
 
 
+class AlignedEntry(BaseModel):
+    org: str
+    bullets: list[str]
+
+
+class AlignedProject(BaseModel):
+    name: str
+    blurb: str
+
+
+class Aligned(BaseModel):
+    requirements: list[str] = Field(description="the posting's core requirements, in its own words")
+    experience: list[AlignedEntry]
+    projects: list[AlignedProject] = []
+    gaps: list[str] = Field(description="requirements the record doesn't support; left uncovered")
+
+
+def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
+    """Reword the picked lines in the posting's vocabulary and order them by its requirements; facts unchanged.
+    Returns the content and notes (requirements covered, gaps)."""
+    import copy
+    cur = {"experience": [{"org": e["org"], "role": e.get("role"), "bullets": [b["text"] for b in e.get("bullets", [])]} for e in content.get("experience", [])],
+           "projects": [{"name": p["name"], "blurb": p["blurb"]} for p in content.get("projects", [])]}
+    body = (f"## POSTING\nCompany: {job.get('company')}\nTitle: {job.get('title')}\n\n{(job.get('description') or '')[:9000]}\n\n"
+            f"## RÉSUMÉ LINES\n{json.dumps(cur, ensure_ascii=False, indent=1)}")
+    out = structured(_system(P.ALIGN), body, Aligned, effort="high", max_tokens=8000)
+    new = copy.deepcopy(content)
+    by_org = {e.org: e.bullets for e in out.experience}
+    NUMW = r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?)\b"
+    nums = lambda t: set(re.findall(r"\d[\d,.]*\+?%?", t)) | {w.lower() for w in re.findall(NUMW, t, re.I)}
+    CLAIMS = r"\b(deployed|adopted|adoption|rolled out|in production|alongside|scaled to)\b"
+    claims = lambda t: {w.lower() for w in re.findall(CLAIMS, t, re.I)}
+    for e in new.get("experience", []):
+        b = by_org.get(e["org"])
+        if not b:
+            continue
+        old_nums = nums(" ".join(x["text"] for x in e["bullets"]))
+        old_text = " ".join(x["text"] for x in e["bullets"])
+        if not nums(" ".join(b)) <= old_nums or not claims(" ".join(b)) <= claims(old_text):
+            continue   # a number or an outcome the record doesn't have: keep the original lines for this entry
+        e["bullets"] = [{"text": t, "provenance": "adapted", "link_text": "", "link": ""} for t in b]
+    blurbs = {p.name: p.blurb for p in out.projects}
+    for p in new.get("projects", []):
+        if blurbs.get(p["name"]) and nums(blurbs[p["name"]]) <= nums(p["blurb"]) and claims(blurbs[p["name"]]) <= claims(p["blurb"]):
+            p["blurb"] = blurbs[p["name"]]; p["provenance"] = "adapted"
+    return new, ["requirements: " + "; ".join(out.requirements)] + (["not covered: " + "; ".join(out.gaps)] if out.gaps else [])
+
+
 def revise_resume(job: dict, current: dict, instruction: str) -> ResumeContent:
     """The person's note on one résumé ("lead with the climate work", "shorter bullets"), applied to that résumé only.
     Same rules as tailoring: facts come from the master documents, nothing is invented."""
