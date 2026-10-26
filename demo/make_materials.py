@@ -24,14 +24,16 @@ h1 { font-size: 22pt; margin: 0 0 2pt; letter-spacing: -.01em; } h2 { font-size:
 </style>"""
 
 RESUME = f"""{CSS}<h1>Taylor Brooks</h1>
-<div class="muted">Product Designer · New York, NY · taylor.brooks@example.com · (555) 010-0199 · taylorbrooks.example</div>
+<div class="muted">Senior Product Designer · New York, NY · taylor.brooks@example.com · (555) 010-0199 · taylorbrooks.example</div>
 <h2>Experience</h2>
-<div class="row"><b>Brightwater Labs · Product Designer</b><span class="muted">New York, NY · 06/2021 - present</span></div>
-<div class="muted">A home-energy app that helps renters understand and lower their utility bills.</div>
-<ul><li>Redesigned onboarding; completion rose from 41% to 68% in eight weeks.</li>
+<div class="row"><b>Brightwater Labs · Senior Product Designer</b><span class="muted">New York, NY · 06/2021 - present</span></div>
+<div class="muted">A fintech app for renters: utility bills, payments and autopay, used by 400,000 people; plus a dashboard for property managers.</div>
+<ul><li>Redesigned onboarding and autopay setup; completion rose from 41% to 68% and autopay enrollment doubled in one quarter.</li>
 <li>Designed the bill-forecast feature, now used by 120,000 renters each month.</li>
-<li>Built the team's Figma component library (210 components) and wrote its usage guide.</li>
-<li>Ran 30 interviews with renters and landlords and turned them into the 2023 roadmap.</li></ul>
+<li>Led design of an AI bill explainer that answers "why is my bill higher?" in plain language; support tickets fell 23%.</li>
+<li>Designed the property-manager dashboard (payments, reconciliation, data tables) for 1,800 buildings, from research to launch.</li>
+<li>Built the design system: 210 Figma components with matching React tokens, built with two engineers, plus its usage guide.</li>
+<li>Ran 30 interviews with renters and landlords and turned them into the 2023 roadmap with the product and engineering leads.</li></ul>
 <div class="row"><b>Northlight Studio · Design Intern</b><span class="muted">Brooklyn, NY · 06/2020 - 08/2020</span></div>
 <ul><li>Designed and prototyped a museum's ticketing kiosk in Figma; tested it with 12 visitors.</li>
 <li>Wrote the studio's accessibility checklist for client handoffs.</li></ul>
@@ -39,19 +41,21 @@ RESUME = f"""{CSS}<h1>Taylor Brooks</h1>
 <div class="row"><b>Riverside College of Design · BFA Interaction Design</b><span class="muted">05/2021</span></div>
 <div class="muted">Capstone: Designing for Renters' Energy Decisions</div>
 <h2>Skills</h2>
-<div>Figma, prototyping, user research, design systems, accessibility (WCAG 2.2), HTML and CSS</div>
+<div>Product design, Figma, prototyping, design systems, payments and billing flows, dashboards and data visualization,
+AI product design (LLM features), user research, accessibility (WCAG 2.2), HTML, CSS and React basics</div>
 <div class="note">{NOTE}</div>"""
 
 LETTER = f"""{CSS}<div class="serif">
 <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #0f766e;padding-bottom:8pt;margin-bottom:28pt">
 <b style="font:600 15pt Helvetica,Arial,sans-serif;color:#0f766e">Brightwater Labs</b><span class="muted" style="font:9pt Helvetica,Arial,sans-serif">New York, NY</span></div>
-<p>September 15, 2026</p><p>To whom it may concern,</p>
+<p>September 15, 2026</p><p>Dear hiring team,</p>
 <p>I have been Taylor Brooks's manager at Brightwater Labs for the past five years, and I recommend Taylor without reservation
-for any product design role.</p>
-<p>Taylor designed our bill-forecast feature, which 120,000 renters now use every month. It started as Taylor's college
-capstone; Taylor brought the research with them, tested the idea with our users, and shipped it with two engineers in one
-quarter. Taylor also led our first accessibility audit, which found and fixed 140 issues across our iOS and Android apps,
-and has mentored two junior designers on our team.</p>
+for a senior product design role.</p>
+<p>Taylor designed our bill-forecast feature, which 120,000 renters now use every month, and redesigned autopay setup, which
+doubled enrollment in a quarter. Last year Taylor led the design of our AI bill explainer: Taylor wrote the evaluation set
+of 200 real customer questions with our engineers, so we shipped only when the answers were right, and support tickets fell
+23%. Taylor also designed our property-manager dashboard, led our first accessibility audit (140 issues fixed across iOS
+and Android) and mentors two junior designers.</p>
 <p>Engineers seek Taylor out before they start building, because Taylor's specifications answer their questions before
 they ask them. Taylor is calm in reviews, precise with data, and generous with credit.</p>
 <p>Please contact me with any questions.</p>
@@ -83,8 +87,8 @@ Participants also named a specific change they would make in 19 of 24 sessions.<
 MEMO = ("Hey, it's Taylor. Quick one, because this isn't on my résumé. On weekends I built a Figma plugin called Contrast "
         "Buddy. It checks color contrast while you design, and suggests the closest color that actually passes W C A G. "
         "About three thousand designers use it, and it has a four point eight rating, which is higher than my karaoke rating. "
-        "I also gave a talk about it at a design meetup in Brooklyn last spring. What I want next: a product design role, "
-        "ideally in climate or energy, in New York or hybrid.")
+        "I also gave a talk about it at a design meetup in Brooklyn last spring. What I want next: a senior product design role, "
+        "ideally fintech or AI products, in New York or hybrid.")
 
 
 def pdfs() -> None:

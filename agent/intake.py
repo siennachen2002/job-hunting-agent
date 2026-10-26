@@ -35,9 +35,12 @@ def read_any(path: Path) -> str:
 
 def transcribe(path: Path) -> str:
     """Voice notes: talk through a job, a project, what you want next. Uses local whisper if installed."""
+    import hashlib
     cached = path.with_suffix(path.suffix + ".txt")
-    if cached.exists():
-        return cached.read_text(encoding="utf-8")
+    by_content = config.DATA_DIR / "transcripts" / (hashlib.sha1(path.read_bytes()).hexdigest() + ".txt")   # the same recording, never twice
+    for c in (cached, by_content):
+        if c.exists():
+            return c.read_text(encoding="utf-8")
     try:
         from faster_whisper import WhisperModel
         segs, _ = WhisperModel("small", compute_type="int8").transcribe(str(path))
@@ -50,6 +53,7 @@ def transcribe(path: Path) -> str:
             print(f"  ! {path.name}: install faster-whisper (pip install faster-whisper) or drop a transcript next to it")
             return ""
     cached.write_text(text, encoding="utf-8")
+    by_content.parent.mkdir(parents=True, exist_ok=True); by_content.write_text(text, encoding="utf-8")
     return text
 
 

@@ -255,6 +255,9 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
 EMAIL_RE = __import__("re").compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
 
+PRE: dict = {}   # job_id -> (questions, FormAnswers) drafted while the résumé was being written (compose_job)
+
+
 def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
     """Bring drafted applications to 'ready for your approval':
     ATS posting -> read the live form, draft answers, fill it in a headless browser (never submits), screenshot.
@@ -274,9 +277,12 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
         if not still_open(j):
             db.update_application(con, a["id"], status="withdrawn", error="posting closed"); con.execute("UPDATE jobs SET status='closed' WHERE id=?", (j["id"],)); con.commit(); continue
         if j["source"] in ("greenhouse", "lever", "ashby") and j.get("apply_url"):
-            fields = [f for f in inspect(j["apply_url"]) if "recaptcha" not in (f["label"] + f["name"]).lower() and f["label"]]
-            qs = [{"label": f["label"], "required": f["required"], "type": f["type"], "options": f["options"]} for f in fields]
-            fa = llm.answer_form(j, qs)
+            if j["id"] in PRE:
+                qs, fa = PRE.pop(j["id"])
+            else:
+                fields = [f for f in inspect(j["apply_url"]) if "recaptcha" not in (f["label"] + f["name"]).lower() and f["label"]]
+                qs = [{"label": f["label"], "required": f["required"], "type": f["type"], "options": f["options"]} for f in fields]
+                fa = llm.answer_form(j, qs)
             fa.needs_human = [q for q in fa.needs_human if not __import__("re").search(r"\b(resume|cv)\b.*(upload|file)|^(resume|cv)\b", q, __import__("re").I)]
             for x in fa.answers:
                 if x.answer and len(x.answer.split()) > 25:
@@ -352,7 +358,10 @@ def demo_one(con, boards: int = 12) -> int | None:
         filled = {k: v for k, v in sample.items() if v and not str(cur.get(k) or "").strip()}
         setup_answers.save({**cur, **filled})
         print("sample answers for:", ", ".join(filled))
-    ents = [e for e in config.companies() if e.get("ats") in ("greenhouse", "lever", "ashby")][:boards]
+    import yaml
+    demo_boards = config.ROOT / "demo" / "companies.yaml"
+    src = (yaml.safe_load(demo_boards.read_text(encoding="utf-8")) or {}).get("companies", []) if config.is_demo() and demo_boards.exists() else config.companies()
+    ents = [e for e in src if e.get("ats") in ("greenhouse", "lever", "ashby")][:boards]
     def get(e):
         try:
             return ats.fetch_company(e)
@@ -395,6 +404,15 @@ def compose_job(con, job_id: int) -> int:
     lens = sc.get("role_family") or "product_design"
     content = assemble(lens, job.get("sector"), posting_text=(job.get("title") or "") + " " + (job.get("description") or ""), posting_title=job.get("title") or "")
     from . import llm
+    import concurrent.futures as cf
+    def draft_form():   # independent of the résumé: read the live form and draft its answers meanwhile
+        from .apply.inspect_form import inspect
+        if job["source"] not in ("greenhouse", "lever", "ashby") or not job.get("apply_url"):
+            return None
+        fields = [f for f in inspect(job["apply_url"]) if "recaptcha" not in (f["label"] + f["name"]).lower() and f["label"]]
+        qs = [{"label": f["label"], "required": f["required"], "type": f["type"], "options": f["options"]} for f in fields]
+        return qs, llm.answer_form(job, qs)
+    pool = cf.ThreadPoolExecutor(1); form_future = pool.submit(draft_form)
     align_notes = []
     try:   # the storybook's lines, reworded in the posting's vocabulary and ordered by its requirements; facts unchanged
         content, align_notes = llm.align_resume(job, content)
@@ -413,6 +431,13 @@ def compose_job(con, job_id: int) -> int:
                                    diy_ratio=0.0, diy_notes=f"assembled from storybook lines; lens {lens}\n-- aligned to the posting\n" + "\n".join(align_notes))
     con.execute("UPDATE jobs SET status='applied_draft' WHERE id=?", (job_id,)); con.commit()
     log(con, "compose", "resume", f"lens {lens}", job_id=job_id, app_id=app_id)
+    try:
+        pre = form_future.result()
+        if pre:
+            PRE[job_id] = pre
+    except Exception:
+        pass   # prepare reads the form itself
+    pool.shutdown(wait=False)
     prepare(con, 1, app_id=app_id)
     return app_id
 

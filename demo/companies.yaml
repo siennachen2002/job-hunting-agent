@@ -1,0 +1,15 @@
+# The live demo's job boards: companies with many US product design roles, so the fictional applicant finds a close
+# match fast (agent/run.py demo_one). Real public boards; nothing is ever submitted from a demo account.
+companies:
+  - {name: Ramp, ats: ashby, board_token: ramp, sector: tech}
+  - {name: Stripe, ats: greenhouse, board_token: stripe, sector: tech}
+  - {name: Plaid, ats: ashby, board_token: plaid, sector: tech}
+  - {name: Mercury, ats: ashby, board_token: mercury, sector: tech}
+  - {name: Betterment, ats: greenhouse, board_token: betterment, sector: tech}
+  - {name: Chime, ats: greenhouse, board_token: chime, sector: tech}
+  - {name: Brex, ats: greenhouse, board_token: brex, sector: tech}
+  - {name: Asana, ats: greenhouse, board_token: asana, sector: tech}
+  - {name: Notion, ats: ashby, board_token: notion, sector: tech}
+  - {name: Linear, ats: ashby, board_token: linear, sector: tech}
+  - {name: Figma, ats: greenhouse, board_token: figma, sector: tech}
+  - {name: Watershed, ats: ashby, board_token: watershed, sector: climate}
