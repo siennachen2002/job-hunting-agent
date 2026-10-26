@@ -148,6 +148,19 @@ class Aligned(BaseModel):
     gaps: list[str] = Field(description="requirements the record doesn't support; left uncovered")
 
 
+def shorten_long(content: dict) -> None:
+    """Every bullet and blurb in at most two lines: longer ones are rewritten shorter, same facts."""
+    from .voicecheck import MAX_BULLET
+    items = [b for e in content.get("experience", []) for b in e.get("bullets", [])] + list(content.get("projects", []))
+    for it in items:
+        k = "text" if "text" in it else "blurb"
+        for _ in range(2):
+            if len(it[k]) <= MAX_BULLET:
+                break
+            it[k] = repair_text(it[k], f"Too long: {len(it[k])} characters. Make it at most {MAX_BULLET - 15} characters: keep the action, "
+                                       "the object and every number; cut the least important detail.", "resume").strip()
+
+
 def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
     """Reword the picked lines in the posting's vocabulary and order them by its requirements; facts unchanged.
     Returns the content and notes (requirements covered, gaps)."""
@@ -176,6 +189,7 @@ def align_resume(job: dict, content: dict) -> tuple[dict, list[str]]:
     for p in new.get("projects", []):
         if blurbs.get(p["name"]) and nums(blurbs[p["name"]]) <= nums(p["blurb"]) and claims(blurbs[p["name"]]) <= claims(p["blurb"]):
             p["blurb"] = blurbs[p["name"]]; p["provenance"] = "adapted"
+    shorten_long(new)
     return new, ["requirements: " + "; ".join(out.requirements)] + (["not covered: " + "; ".join(out.gaps)] if out.gaps else [])
 
 

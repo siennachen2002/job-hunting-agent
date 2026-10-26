@@ -48,7 +48,8 @@ ALIGN = ("Align this one-page résumé to the posting. First list the posting's 
          "and tool exactly as given; never add a tool, metric, client, result or responsibility that isn't already there, and never add "
          "what happened next or around it (deployed, adopted, drove adoption, rolled out, alongside a named person, a count in words); "
          "change the framing and the words, never the facts. If a "
-         "requirement isn't supported, leave it uncovered and name it in gaps. Keep each bullet to one achievement, under 30 words, "
+         "requirement isn't supported, leave it uncovered and name it in gaps. Keep each bullet to one achievement in at most two lines "
+         "(200 characters including spaces), "
          "opening verbs varied. Keep entries, projects and their order as given.")
 
 REVISE = ("Revise this one-page résumé as the person asks. Change only what the note asks for; keep everything else as it is. "

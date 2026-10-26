@@ -112,4 +112,9 @@ def lint_resume(content: dict, max_same_verb: int = 2) -> list[Issue]:
     from collections import Counter
     lines = [b["text"] for e in content.get("experience", []) for b in e.get("bullets", [])] + [p.get("blurb", "") for p in content.get("projects", [])]
     verbs = Counter(l.split()[0].lower().strip(",") for l in lines if l.split())
-    return [Issue("hard", f"'{v.title()}' opens {n} lines on this page; vary the verb") for v, n in verbs.items() if n > max_same_verb]
+    out = [Issue("hard", f"'{v.title()}' opens {n} lines on this page; vary the verb") for v, n in verbs.items() if n > max_same_verb]
+    out += [Issue("hard", f"over two lines ({len(l)} characters, max {MAX_BULLET}): {l[:60]}…") for l in lines if len(l) > MAX_BULLET]
+    return out
+
+
+MAX_BULLET = 200   # characters: two lines on the page, at the smallest scale the renderer uses
