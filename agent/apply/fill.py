@@ -328,24 +328,30 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 # Greenhouse emails a one-time code for automated-looking submissions. It is a human check:
                 # the person types it into this window and clicks Submit; we only wait and watch.
                 result["needs_person"] = "Greenhouse emailed you a security code: type it into the open window and click Submit"
-                if headed:
-                    import subprocess
-                    subprocess.run(["osascript", "-e", 'display notification "Enter the security code from your email in the open window, then Submit." with title "Job Hunter Agent" sound name "Glass"'])
-                    for _ in range(60):   # up to 10 minutes
-                        pg.wait_for_timeout(10000)
-                        body = pg.inner_text("body").lower()
-                        if any(w in body for w in ("thank you for applying", "successfully submitted", "application was received", "thanks for applying")):
-                            break
-            elif "recaptcha" in pg.content().lower() and not any(w in body for w in ("thank", "received", "submitted")):
+            elif pg.evaluate("""() => [...document.querySelectorAll('iframe')].some(f => /bframe|hcaptcha|challenge/i.test(f.src + f.title)
+                        && f.getBoundingClientRect().height > 100 && getComputedStyle(f.closest('div') || f).visibility !== 'hidden')"""):
                 result["needs_person"] = "CAPTCHA shown: finish it in the open window"
-                if headed:
-                    import subprocess
-                    subprocess.run(["osascript", "-e", 'display notification "A CAPTCHA needs you in the open window." with title "Job Hunter Agent" sound name "Glass"'])
-                    for _ in range(60):
-                        pg.wait_for_timeout(10000)
-                        body = pg.inner_text("body").lower()
-                        if any(w in body for w in ("thank", "successfully submitted", "received")):
-                            break
+            done = lambda b: re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
+                                       r"successfully submitted|we('ve| have) received your application|your application is in", b)
+            if headed and not done(body):
+                # whatever is left (a code, a CAPTCHA, a field the form still rejects, or nothing visible): the window comes to
+                # the front, scrolled to the spot, with a banner saying what to do; then we wait for the confirmation
+                from .browser import call_person
+                need = result.get("needs_person") or ""
+                if "security code" in need:
+                    call_person(pg, "type the security code from your email below, then click Submit.", 'input[id*="security" i], input[name*="code" i]')
+                elif "CAPTCHA" in need:
+                    call_person(pg, "finish the 'I'm not a robot' check on this page, then click Submit.", 'iframe[src*="recaptcha"], iframe[src*="hcaptcha"]')
+                elif need.startswith("form rejected"):
+                    call_person(pg, "the form says something is missing (see the red box). Fix it, then click Submit.", '[class*=error i], [aria-invalid="true"]')
+                else:
+                    call_person(pg, "this application isn't confirmed yet. Check the page, then click Submit.", 'button[type=submit], button:has-text("Submit")')
+                for _ in range(60):   # up to 10 minutes; closing the window ends it
+                    pg.wait_for_timeout(10000)
+                    body = pg.inner_text("body").lower()
+                    if done(body):
+                        result.pop("needs_person", None)
+                        break
             # a real confirmation: one of these phrases AND the Submit button is gone (the form text itself says "submit")
             confirmed = re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
                                   r"successfully submitted|we('ve| have) received your application|your application is in", body)

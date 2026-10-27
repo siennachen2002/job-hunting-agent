@@ -33,7 +33,9 @@ def open_page(p, headless: bool = True, viewport: dict | None = None):
     """A page in the agent's browser profile, and a function that closes it. If the profile is busy (its window is open
     for signing in, or another run has it), a fresh profile is used instead: the fill works, without your sign-ins."""
     PROFILE.mkdir(parents=True, exist_ok=True)
-    kw = dict(headless=headless, viewport=viewport or {"width": 1280, "height": 1600})
+    # a window you watch takes the screen's size, so it scrolls like any page; only a hidden one draws a tall page for screenshots
+    kw = dict(headless=headless, viewport=viewport or {"width": 1280, "height": 1600}) if headless else \
+        dict(headless=False, no_viewport=True, args=["--start-maximized"])
     for channel in (["chrome"] if chrome() else []) + [None]:
         try:
             ctx = p.chromium.launch_persistent_context(str(PROFILE), **({**kw, "channel": channel} if channel else kw))
@@ -41,8 +43,31 @@ def open_page(p, headless: bool = True, viewport: dict | None = None):
         except Exception as e:
             last = e
     print(f"  the agent's browser profile is busy ({last.__class__.__name__}); using a fresh one for this run")
-    b = p.chromium.launch(headless=headless)
-    return b.new_page(viewport=kw["viewport"]), b.close
+    b = p.chromium.launch(headless=headless, args=kw.get("args") or [])
+    return (b.new_page(viewport=kw["viewport"]) if headless else b.new_page(no_viewport=True)), b.close
+
+
+def call_person(pg, message: str, target: str | None = None) -> None:
+    """Put the submit window in front of the person, scrolled to what needs them, with a banner saying what to do."""
+    try:
+        if target and pg.locator(target).count():
+            pg.locator(target).first.scroll_into_view_if_needed(timeout=3000)
+        pg.evaluate("""m => { let b = document.getElementById('jha-banner'); if (!b) { b = document.createElement('div'); b.id = 'jha-banner';
+            b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#B91C1C;color:#fff;font:600 16px/1.4 -apple-system,sans-serif;padding:14px 20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+            document.body.appendChild(b); } b.textContent = 'Job Hunter Agent: ' + m; }""", message)
+        pg.bring_to_front()
+    except Exception:
+        pass
+    if sys.platform == "darwin":   # raise this browser's own window, not your everyday Chrome
+        try:
+            pid = subprocess.run(["pgrep", "-o", "-f", "Chrom.*" + str(PROFILE if PROFILE.exists() else "ms-playwright")],
+                                 capture_output=True, text=True).stdout.split()
+            if pid:
+                subprocess.run(["osascript", "-e", f'tell application "System Events" to set frontmost of (first process whose unix id is {pid[0]}) to true'],
+                               capture_output=True)
+        except Exception:
+            pass
+        subprocess.run(["osascript", "-e", f'display notification "{message[:120]}" with title "Job Hunter Agent" sound name "Glass"'], capture_output=True)
 
 
 START_PAGE = """<!doctype html><meta charset="utf-8"><title>The agent's browser</title>
