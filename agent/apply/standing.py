@@ -58,6 +58,24 @@ SELF_ID = re.compile(r"veteran|disabilit|gender|\brace\b|ethnic|hispanic|latin[o
 LEGAL = re.compile(r"arbitrat|certify|attest|export control|export[- ]control|bound by|background check|criminal|perjury|true and (complete|correct)", re.I)
 
 
+def _sponsor(l: str, s: dict) -> str | None:
+    """Sponsorship, by what the question asks: 'now or in the future' together is Yes if either is; 'future' alone is the
+    future answer; 'now' alone the present one (OPT counts as now)."""
+    now, fut = s.get("sponsorship_now"), s.get("sponsorship_future")
+    if not (now or fut):
+        return None
+    either = "Yes" if "Yes" in (now, fut) else "No"
+    if re.search(r"\bopt\b|\bcpt\b|\bf-?1\b", l, re.I):
+        return now or either
+    has_now = re.search(r"\bnow\b|current(ly)?|\btoday\b|at this time|to start", l, re.I)
+    has_fut = re.search(r"future|\bever\b|at any (point|time)|later", l, re.I)
+    if has_fut and not has_now:
+        return fut or either
+    if has_now and not has_fut:
+        return now or either
+    return either
+
+
 def simple_answer(label: str) -> str | None:
     """Plain questions answered from the standing answers, then preferences.yaml simple_answers."""
     s, l = _sa(), (label or "")
@@ -82,9 +100,9 @@ def simple_answer(label: str) -> str | None:
         (r"earliest (you could|you can|date you could|start)|when (can|could) you start|available to start|start date", s.get("earliest_start")),
         (r"(come|commute) (in)?to the office|in[- ]office|in an office|from (the|an|our) office|on-?site|in[- ]person|days (a|per) week|hybrid",
          None if not s.get("onsite") else ("No" if s["onsite"].startswith("Remote") else "Yes")),
-        (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?employment|visa sponsorship",
-         None if not (s.get("sponsorship_now") or s.get("sponsorship_future")) else
-         ("Yes" if "Yes" in (s.get("sponsorship_now"), s.get("sponsorship_future")) else "No")),
+        (r"\b(stem )?opt\b|\bcpt\b|\bf-?1\b", _sponsor(l, s)),   # OPT counts as needing support now
+        (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?(immigration|employment)|visa sponsorship|sponsorship",
+         _sponsor(l, s)),
         (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|\bi consent to\b|(review and )?acknowledge .*(agreement|policy|notice|terms)",
          "Yes" if re.match(r"\s*(tick|i agree|yes)", s.get("consent", ""), re.I) else None),
     ]
