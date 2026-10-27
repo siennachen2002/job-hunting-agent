@@ -43,6 +43,10 @@ RESUME = f"""{CSS}<h1>Taylor Brooks</h1>
 <h2>Skills</h2>
 <div>Product design, Figma, prototyping, design systems, payments and billing flows, dashboards and data visualization,
 AI product design (LLM features), user research, accessibility (WCAG 2.2), HTML, CSS and React basics</div>
+<h2>Application details</h2>
+<div>Authorized to work in the United States; no visa sponsorship needed, now or in the future. Willing to relocate within
+the United States. Gender, race, Hispanic or Latino, veteran status, disability: prefer not to say. Required consent and
+privacy boxes: I agree.</div>
 <div class="note">{NOTE}</div>"""
 
 LETTER = f"""{CSS}<div class="serif">

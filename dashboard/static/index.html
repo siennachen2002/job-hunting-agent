@@ -363,6 +363,7 @@
     .composer { padding:14px 14px 10px; } .composer .try { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .composer .try .pill { white-space:nowrap; }
     .chat { max-height:50vh; } .msg { max-width:90%; }
   }
+details.fold summary{list-style:none}details.fold summary::-webkit-details-marker{display:none}details.fold summary b::before{content:'▸ ';color:var(--mute)}details.fold[open] summary b::before{content:'▾ '}
 </style>
 </head>
 <body>
@@ -729,9 +730,9 @@ async function renderStorybook(p) {
   const saved = pbFile === '@saved' ? await api('/api/saved-answers') : [];
   const pend = props.filter(x => x.status === 'pending');
   const running = st.state === 'running';
-  const progress = st.state && st.state !== 'idle' ? `<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><b>${running ? (st.mode === 'add' ? 'Adding to your storybook' : 'Adjusting your storybook') : st.state === 'done' ? 'Storybook updated' : 'Stopped'}</b><span style="font-size:12.5px;color:var(--mute)">${esc(st.reference || '')}</span></div>
+  const progress = st.state && st.state !== 'idle' ? `<details class="panel fold" ${(window.FOLD ?? running) ? 'open' : ''} ontoggle="window.FOLD=this.open"><summary style="display:flex;justify-content:space-between;gap:12px;align-items:center;cursor:pointer"><b>${running ? (st.mode === 'add' ? 'Adding to your storybook' : 'Adjusting your storybook') : st.state === 'done' ? 'Storybook updated' : 'Stopped'}</b><span style="font-size:12.5px;color:var(--mute)">${esc(st.reference || '')} ${(st.changes || []).length ? '· ' + st.changes.length + ' changes' : ''}</span></summary>
       <div class="progress"><i style="width:${st.total ? Math.round(100 * st.done / st.total) : 0}%"></i></div><div style="font-size:12.5px;color:var(--mute)">${running ? 'Now: ' + esc(st.current) : ''} ${st.error ? esc(st.error) : ''}</div>
-      ${(st.changes || []).slice(-8).reverse().map(c => `<div class="change"><div class="w">${esc(c.where)} · ${esc(c.why)}</div>${c.before ? `<s>${esc(c.before)}</s>` : ''}<div>${c.before ? '' : '<b class="plus">+</b> '}${esc(c.after)}</div></div>`).join('')}</div>` : '';
+      ${(st.changes || []).slice(-8).reverse().map(c => `<div class="change"><div class="w">${esc(c.where)} · ${esc(c.why)}</div>${c.before ? `<s>${esc(c.before)}</s>` : ''}<div>${c.before ? '' : '<b class="plus">+</b> '}${esc(c.after)}</div></div>`).join('')}</details>` : '';
   const examples = ['Improve my storybook', 'Change how my résumé is written', 'Change my application strategy'];
   const label = f => f.replace(/^\d+-/, '').replace(/\.md$/, '').replace(/-/g, ' ').replace(/^readme$/i, 'Sources');
   const known = ((await api('/api/setup')).steps.find(x => x.id === 'storybook') || {}).done;   // an empty storybook: no suggestions yet
