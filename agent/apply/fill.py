@@ -302,64 +302,77 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 result["needs_person"] = "not submitted: required fields still empty"
                 result["unfilled"] = empty
                 return result
-            btn = pg.get_by_role("button", name=re.compile(r"submit", re.I)).first
-            btn.click(); pg.wait_for_timeout(5000)
-            body = pg.inner_text("body").lower()
-            for _ in range(2):   # the form lost a value it still shows (Ashby resets its state after parsing the résumé)
-                if not (re.search(r"missing entry for required field|needs corrections", body) and not any(w in body for w in ("thank", "successfully submitted"))):
-                    break
-                refill_cleared()
-                named = [_norm(x) for x in re.findall(r"missing entry for required field:?\s*([^\n]+)", body)]
-                reenter(named)
-                btn.click(); pg.wait_for_timeout(5000)
-                body = pg.inner_text("body").lower()
-            m = re.search(r"(missing entry for required field[^\n]*|needs corrections[^\n]*|this field is required[^\n]*)", body)
-            if m and not any(w in body for w in ("thank", "received", "submitted")):
-                try:   # which fields the form rejected, by their question text
-                    bad = pg.evaluate("""() => [...document.querySelectorAll('[aria-invalid="true"], .field-error, [class*=error] input, [class*=Error] input')]
-                        .map(el => { const f = el.closest('.field, fieldset, [class*=field], [class*=Field], label') || el.parentElement;
-                                     const l = f && (f.querySelector('label, legend') || f); return (l ? l.innerText : '').trim().split('\\n')[0].slice(0, 90); })
-                        .filter(Boolean)""")
-                except Exception:
-                    bad = []
-                bad = list(dict.fromkeys(bad))[:4]
-                result["needs_person"] = "form rejected" + (": fix " + "; ".join(bad) if bad else ": " + m.group(1)[:200])
-            elif re.search(r"security code|verification code|enter the code", body) and not any(w in body for w in ("thank you for applying", "successfully submitted")):
-                # Greenhouse emails a one-time code for automated-looking submissions. It is a human check:
-                # the person types it into this window and clicks Submit; we only wait and watch.
-                result["needs_person"] = "Greenhouse emailed you a security code: type it into the open window and click Submit"
-            elif pg.evaluate("""() => [...document.querySelectorAll('iframe')].some(f => /bframe|hcaptcha|challenge/i.test(f.src + f.title)
-                        && f.getBoundingClientRect().height > 100 && getComputedStyle(f.closest('div') || f).visibility !== 'hidden')"""):
-                result["needs_person"] = "CAPTCHA shown: finish it in the open window"
-            done = lambda b: re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
-                                       r"successfully submitted|we('ve| have) received your application|your application is in", b)
-            if headed and not done(body):
-                # whatever is left (a code, a CAPTCHA, a field the form still rejects, or nothing visible): the window comes to
-                # the front, scrolled to the spot, with a banner saying what to do; then we wait for the confirmation
-                from .browser import call_person
-                need = result.get("needs_person") or ""
-                if "security code" in need:
-                    call_person(pg, "type the security code from your email below, then click Submit.", 'input[id*="security" i], input[name*="code" i]')
-                elif "CAPTCHA" in need:
-                    call_person(pg, "finish the 'I'm not a robot' check on this page, then click Submit.", 'iframe[src*="recaptcha"], iframe[src*="hcaptcha"]')
-                elif need.startswith("form rejected"):
-                    call_person(pg, "the form says something is missing (see the red box). Fix it, then click Submit.", '[class*=error i], [aria-invalid="true"]')
-                else:
-                    call_person(pg, "this application isn't confirmed yet. Check the page, then click Submit.", 'button[type=submit], button:has-text("Submit")')
-                for _ in range(60):   # up to 10 minutes; closing the window ends it
-                    pg.wait_for_timeout(10000)
-                    body = pg.inner_text("body").lower()
-                    if done(body):
-                        result.pop("needs_person", None)
-                        break
-            # a real confirmation: one of these phrases AND the Submit button is gone (the form text itself says "submit")
-            confirmed = re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
-                                  r"successfully submitted|we('ve| have) received your application|your application is in", body)
             try:
-                still_form = pg.get_by_role("button", name=re.compile(r"^\s*submit", re.I)).first.is_visible(timeout=1000)
-            except Exception:
-                still_form = False
-            result["submitted"] = bool(confirmed) and not still_form
-            pg.screenshot(path=shot_path.replace(".png", "-after.png"), full_page=True)
+                btn = pg.get_by_role("button", name=re.compile(r"submit", re.I)).first
+                btn.click(); result["clicked"] = True; pg.wait_for_timeout(5000)
+                body = pg.inner_text("body").lower()
+                for _ in range(2):   # the form lost a value it still shows (Ashby resets its state after parsing the résumé)
+                    if not (re.search(r"missing entry for required field|needs corrections", body) and not any(w in body for w in ("thank", "successfully submitted"))):
+                        break
+                    refill_cleared()
+                    named = [_norm(x) for x in re.findall(r"missing entry for required field:?\s*([^\n]+)", body)]
+                    reenter(named)
+                    btn.click(); pg.wait_for_timeout(5000)
+                    body = pg.inner_text("body").lower()
+                m = re.search(r"(missing entry for required field[^\n]*|needs corrections[^\n]*|this field is required[^\n]*)", body)
+                if m and not any(w in body for w in ("thank", "received", "submitted")):
+                    try:   # which fields the form rejected, by their question text
+                        bad = pg.evaluate("""() => [...document.querySelectorAll('[aria-invalid="true"], .field-error, [class*=error] input, [class*=Error] input')]
+                            .map(el => { const f = el.closest('.field, fieldset, [class*=field], [class*=Field], label') || el.parentElement;
+                                         const l = f && (f.querySelector('label, legend') || f); return (l ? l.innerText : '').trim().split('\\n')[0].slice(0, 90); })
+                            .filter(Boolean)""")
+                    except Exception:
+                        bad = []
+                    bad = list(dict.fromkeys(bad))[:4]
+                    result["needs_person"] = "form rejected" + (": fix " + "; ".join(bad) if bad else ": " + m.group(1)[:200])
+                elif re.search(r"security code|verification code|enter the code", body) and not any(w in body for w in ("thank you for applying", "successfully submitted")):
+                    # Greenhouse emails a one-time code for automated-looking submissions. It is a human check:
+                    # the person types it into this window and clicks Submit; we only wait and watch.
+                    result["needs_person"] = "Greenhouse emailed you a security code: type it into the open window and click Submit"
+                elif pg.evaluate("""() => [...document.querySelectorAll('iframe')].some(f => /bframe|hcaptcha|challenge/i.test(f.src + f.title)
+                            && f.getBoundingClientRect().height > 100 && getComputedStyle(f.closest('div') || f).visibility !== 'hidden')"""):
+                    result["needs_person"] = "CAPTCHA shown: finish it in the open window"
+                done = lambda b: re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
+                                           r"successfully submitted|we('ve| have) received your application|your application is in", b)
+                if headed and not done(body):
+                    # whatever is left (a code, a CAPTCHA, a field the form still rejects, or nothing visible): the window comes to
+                    # the front, scrolled to the spot, with a banner saying what to do; then we wait for the confirmation
+                    from .browser import call_person
+                    need = result.get("needs_person") or ""
+                    if "security code" in need:
+                        call_person(pg, "type the security code from your email below, then click Submit.", 'input[id*="security" i], input[name*="code" i]')
+                    elif "CAPTCHA" in need:
+                        call_person(pg, "finish the 'I'm not a robot' check on this page, then click Submit.", 'iframe[src*="recaptcha"], iframe[src*="hcaptcha"]')
+                    elif need.startswith("form rejected"):
+                        call_person(pg, "the form says something is missing (see the red box). Fix it, then click Submit.", '[class*=error i], [aria-invalid="true"]')
+                    else:
+                        call_person(pg, "this application isn't confirmed yet. Check the page, then click Submit.", 'button[type=submit], button:has-text("Submit")')
+                    for _ in range(60):   # up to 10 minutes; closing the window ends it
+                        pg.wait_for_timeout(10000)
+                        body = pg.inner_text("body").lower()
+                        if done(body):
+                            result.pop("needs_person", None)
+                            break
+                # a real confirmation: one of these phrases AND the Submit button is gone (the form text itself says "submit")
+                confirmed = re.search(r"thank(s| you) for (applying|your application)|application (has been|was) (successfully )?(submitted|received)|"
+                                      r"successfully submitted|we('ve| have) received your application|your application is in", body)
+                try:
+                    still_form = pg.get_by_role("button", name=re.compile(r"^\s*submit", re.I)).first.is_visible(timeout=1000)
+                except Exception:
+                    still_form = False
+                result["submitted"] = bool(confirmed) and not still_form
+                pg.screenshot(path=shot_path.replace(".png", "-after.png"), full_page=True)
+            except Exception as e:   # the window closed (you closed it, or the site moved on): after Submit it counts as sent
+                if "closed" not in str(e).lower():
+                    raise
+                result["closed"] = True
+                result["submitted"] = bool(result.get("clicked"))
+                if result["submitted"]:
+                    log.append("window closed after Submit was clicked: counted as sent; the confirmation email confirms it")
+                try:
+                    close()
+                except Exception:
+                    pass
+                return result
         close()
     return result

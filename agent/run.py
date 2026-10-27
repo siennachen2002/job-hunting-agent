@@ -230,7 +230,7 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
         if aj.get("needs_human"):
             print(f"  app {a['id']} {j['company']}: still has unanswered questions, skipped"); continue
         if not still_open(j):
-            db.update_application(con, a["id"], status="failed", error="posting closed"); con.commit(); continue
+            db.update_application(con, a["id"], status="withdrawn", error="posting closed"); con.commit(); continue
         config.SCREENS.mkdir(parents=True, exist_ok=True); shot = str(config.SCREENS / f"app{a['id']}-submit.png")
         ans = {x["question"]: x["answer"] for x in aj.get("answers", []) if x.get("answer")}
         try:
@@ -242,10 +242,13 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
             db.update_application(con, a["id"], status="pending_approval", answers_json=json.dumps(aj, ensure_ascii=False),
                                   error="not submitted: " + "; ".join(x[:60] for x in r["unfilled"][:3]))
             con.commit(); print(f"  app {a['id']} {j['company']}: back to review, {len(r['unfilled'])} required field(s) empty"); continue
-        status = "sent" if r.get("submitted") else "failed"
+        # once Submit was pressed it counts as sent (the confirmation email confirms it); never pressed: back to review
+        status = "sent" if r.get("submitted") or r.get("clicked") else "pending_approval"
+        note = r.get("needs_person") or r.get("error")
         db.update_application(con, a["id"], status=status, sent_at=db.now() if status == "sent" else None,
-                              sent_log=(a["sent_log"] or "") + "\n--- submit ---\n" + "\n".join(r.get("log", [])) + f"\nscreenshot: {shot}",
-                              error=r.get("needs_person") or r.get("error"))
+                              sent_log=(a["sent_log"] or "") + "\n--- submit ---\n" + "\n".join(r.get("log", []))
+                              + (f"\nnote: {note}" if note else "") + f"\nscreenshot: {shot}",
+                              error=None if status == "sent" else (note or "not submitted; approve again to retry"))
         if status == "sent":
             con.execute("UPDATE jobs SET status='applied' WHERE id=?", (j["id"],))
         con.commit()
