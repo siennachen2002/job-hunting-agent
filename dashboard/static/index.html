@@ -198,10 +198,10 @@
 
   /* storybook */
   .tell { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:14px; margin-bottom:26px; }
-  .composer { background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:18px 18px 12px; display:flex; flex-direction:column; transition:border-color .12s, box-shadow .12s; }
+  .composer { background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:24px 20px 16px; display:flex; flex-direction:column; transition:border-color .12s, box-shadow .12s; }
   .composer:focus-within { border-color:color-mix(in srgb, var(--orange) 55%, var(--line)); box-shadow:0 0 0 4px color-mix(in srgb, var(--orange) 12%, transparent); }
   .composer h2 { margin:0 0 4px; font-size:18px; letter-spacing:-.015em; font-weight:620; }
-  .composer textarea { border:0; padding:6px 0; min-height:92px; box-shadow:none !important; font-size:15px; resize:none; background:transparent; }
+  .composer textarea { border:0; padding:6px 0; min-height:128px; box-shadow:none !important; font-size:15px; resize:none; background:transparent; }
   .composer .try { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 12px; }
   .pill { all:unset; cursor:pointer; font-size:13px; padding:5px 11px; border:1px solid var(--line); border-radius:999px; color:var(--ink2); background:var(--surface); transition:all .12s; }
   .pill:hover { border-color:var(--orange); color:var(--orange); background:var(--orange-soft); }
@@ -735,8 +735,7 @@ async function renderStorybook(p) {
   const examples = ['Improve my storybook', 'Change how my résumé is written', 'Change my application strategy'];
   const label = f => f.replace(/^\d+-/, '').replace(/\.md$/, '').replace(/-/g, ' ').replace(/^readme$/i, 'Sources');
   const known = ((await api('/api/setup')).steps.find(x => x.id === 'storybook') || {}).done;   // an empty storybook: no suggestions yet
-  p.innerHTML = `<div class="ph"><div><h1>Storybook</h1></div></div>
-    <div class="tell">
+  p.innerHTML = `<div class="tell">
       <div class="composer ${ch.messages.length || SENDING ? 'chatting' : ''}">${ch.messages.length || SENDING ? `<div class="chat-h"><h2>Your agent</h2><button class="lk" onclick="clearChat()">Clear</button></div>
         <div class="chat" id="chat">${ch.messages.map((m, i, all) => bubble(m, i, all)).join('')}${SENDING ? bubble(SENDING) : ''}${ch.working || SENDING ? '<div class="msg agent typing"><span></span><span></span><span></span></div>' : ''}</div>` : '<h2>What should your agent know?</h2>'}
         <textarea id="ask" placeholder="Tell it about you, or drop your résumé: your storybook and standing answers fill themselves. Type, or tap the mic and talk."></textarea>
@@ -746,6 +745,7 @@ async function renderStorybook(p) {
           <button class="btn primary" ${running ? 'disabled' : ''} onclick="tellAgent()">Send${I.send}</button></div></div>
       <div class="drop" id="drop"><div class="di">${I.up}</div><b>Drop anything</b><span>Old résumés, references, papers, notes, voice memos<br>or <u>browse</u></span><input type="file" id="file" multiple hidden></div>
     </div>
+    <div class="ph"><div><h1>Storybook</h1></div></div>
     ${tell.thinking ? '<div class="status"><span class="spin"></span>Thinking about what you said…</div>' : ''}
     ${progress}
     ${pend.length ? `<div class="sec">Suggested changes · ${pend.length}</div>${pend.map(x => `<div class="panel sugg"><div class="x"><div class="w">${esc(x.reason)}</div>${x.before ? `<s>${esc(x.before)}</s>` : ''}${esc(x.after)}</div>
