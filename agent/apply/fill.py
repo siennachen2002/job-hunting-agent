@@ -104,10 +104,15 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
         fields.sort(key=lambda f: 0 if f["type"] == "file" else 1)
         uploaded = False
         typed = []   # (selector, value, label) of plain text fills, re-checked before Submit
+        ticked = []  # (selector, label) of choices ticked, re-clicked if the form says they are missing
         radios = {}  # radio group → {label, required, ticked}: a required group with nothing chosen is unfilled
         for f in fields:
             if uploaded is True and f["type"] != "file":
                 pg.wait_for_timeout(4000); uploaded = "done"
+                try:   # the résumé parse can take longer: let it finish before typing
+                    pg.wait_for_load_state("networkidle", timeout=15000)
+                except Exception:
+                    pass
             sel = f'[id="{f["id"]}"]' if f["id"] else (f"[name=\"{f['name']}\"]" if f["name"] else
                   (f'[data-field-path="{f["path"]}"] {f["tag"]}' if f.get("path") else None))
             if not sel or "recaptcha" in (f["label"] + f["name"]).lower():
@@ -169,6 +174,7 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 if tick:
                     try:
                         pg.check(sel, force=True, timeout=5000); log.append(f"ticked {opt[:60] or f['label'][:60]}")
+                        ticked.append((sel, f["label"]))
                     except Exception:
                         try:   # custom checkboxes: click the label or the wrapper instead of the hidden input
                             target = pg.locator(f'label[for="{f["id"]}"]').first if f["id"] else None
@@ -264,8 +270,30 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                             pg.fill(s_, v_, timeout=5000); pg.locator(s_).first.press("Tab"); log.append(f"refilled {l_[:50]}")
                     except Exception:
                         pass
+            def reenter(named):
+                """Type a rejected text field again key by key, and click a rejected choice off and on, so the form's own state takes it."""
+                hit = lambda l_: any(n and (n in _norm(l_) or _norm(l_) in n) for n in named)
+                for s_, v_, l_ in typed:
+                    if hit(l_):
+                        try:
+                            loc_ = pg.locator(s_).first; loc_.fill("", timeout=3000); loc_.press_sequentially(v_, delay=5, timeout=60000)
+                            loc_.press("Tab"); log.append(f"re-entered {l_[:50]}")
+                        except Exception:
+                            pass
+                for s_, l_ in ticked:
+                    if hit(l_):
+                        try:
+                            el = pg.locator(s_).first; nm = el.get_attribute("name")
+                            other = pg.locator(f'input[type=radio][name="{nm}"]:not({s_})').first if nm else None
+                            if other is not None and other.count():
+                                other.check(force=True, timeout=3000)
+                            lab_ = pg.locator(f'label[for="{el.get_attribute("id")}"]').first
+                            (lab_.click(timeout=3000) if lab_.count() else el.check(force=True, timeout=3000))
+                            log.append(f"re-ticked {l_[:50]}")
+                        except Exception:
+                            pass
             refill_cleared()
-            empty = [l.split(": ", 1)[1] for l in log if l.startswith(("UNFILLED required: ", "UNFILLED (no matching option"))]
+            empty =[l.split(": ", 1)[1] for l in log if l.startswith(("UNFILLED required: ", "UNFILLED (no matching option"))]
             if empty:   # never press Submit on a form we know is incomplete: it only comes back rejected
                 result["needs_person"] = "not submitted: required fields still empty"
                 result["unfilled"] = empty
@@ -273,8 +301,12 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
             btn = pg.get_by_role("button", name=re.compile(r"submit", re.I)).first
             btn.click(); pg.wait_for_timeout(5000)
             body = pg.inner_text("body").lower()
-            if re.search(r"missing entry for required field|needs corrections", body) and not any(w in body for w in ("thank", "successfully submitted")):
-                refill_cleared()   # one retry after the form reset a field
+            for _ in range(2):   # the form lost a value it still shows (Ashby resets its state after parsing the résumé)
+                if not (re.search(r"missing entry for required field|needs corrections", body) and not any(w in body for w in ("thank", "successfully submitted"))):
+                    break
+                refill_cleared()
+                named = [_norm(x) for x in re.findall(r"missing entry for required field:?\s*([^\n]+)", body)]
+                reenter(named)
                 btn.click(); pg.wait_for_timeout(5000)
                 body = pg.inner_text("body").lower()
             m = re.search(r"(missing entry for required field[^\n]*|needs corrections[^\n]*|this field is required[^\n]*)", body)
