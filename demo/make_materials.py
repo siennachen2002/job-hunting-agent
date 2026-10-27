@@ -15,9 +15,9 @@ from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "materials"
 NOTE = "Sample material for the Job Hunter Agent demo. Everyone and every organization named here is fictional."
-CSS = """<style>@page { size: Letter; margin: 0.7in 0.75in 0.8in; }
-body { font: 10.5pt/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1c1917; margin: 0; }
-h1 { font-size: 22pt; margin: 0 0 2pt; letter-spacing: -.01em; } h2 { font-size: 10.5pt; margin: 16pt 0 6pt; padding-bottom: 3pt; border-bottom: 1px solid #d6d3d1; }
+CSS = """<style>@page { size: Letter; margin: 0.55in 0.7in 0.6in; }
+body { font: 10.5pt/1.38 "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1c1917; margin: 0; }
+h1 { font-size: 22pt; margin: 0 0 2pt; letter-spacing: -.01em; } h2 { font-size: 10.5pt; margin: 12pt 0 5pt; padding-bottom: 3pt; border-bottom: 1px solid #d6d3d1; }
 .muted { color: #57534e; } .row { display: flex; justify-content: space-between; margin-top: 8pt; } ul { margin: 4pt 0 0 0; padding-left: 14pt; } li { margin: 2pt 0; }
 .note { position: fixed; bottom: 0; left: 0; right: 0; font-size: 7.5pt; color: #a8a29e; }
 .serif { font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.6; } .serif h1 { font-size: 18pt; } .serif h2 { border: 0; font-size: 12pt; }
@@ -44,9 +44,7 @@ RESUME = f"""{CSS}<h1>Taylor Brooks</h1>
 <div>Product design, Figma, prototyping, design systems, payments and billing flows, dashboards and data visualization,
 AI product design (LLM features), user research, accessibility (WCAG 2.2), HTML, CSS and React basics</div>
 <h2>Application details</h2>
-<div>Authorized to work in the United States; no visa sponsorship needed, now or in the future. Willing to relocate within
-the United States. Gender, race, Hispanic or Latino, veteran status, disability: prefer not to say. Required consent and
-privacy boxes: I agree.</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;column-gap:18pt;font-size:9pt;line-height:1.35"><div style="break-inside:avoid"><span style="color:#57534e">Legal name:</span> Taylor Brooks (preferred first name: Taylor)</div><div style="break-inside:avoid"><span style="color:#57534e">Pronouns:</span> they/them</div><div style="break-inside:avoid"><span style="color:#57534e">Work authorization:</span> Authorized to work in the United States</div><div style="break-inside:avoid"><span style="color:#57534e">Visa sponsorship:</span> Not needed now, and not needed in the future</div><div style="break-inside:avoid"><span style="color:#57534e">Relocation:</span> Willing to relocate, anywhere within the United States</div><div style="break-inside:avoid"><span style="color:#57534e">Work arrangement:</span> In office or hybrid in New York, either is fine</div><div style="break-inside:avoid"><span style="color:#57534e">Earliest start:</span> Two weeks after an offer</div><div style="break-inside:avoid"><span style="color:#57534e">GPA:</span> 3.7 (BFA, Riverside College of Design); no graduate degree</div><div style="break-inside:avoid"><span style="color:#57534e">LinkedIn / GitHub:</span> None</div><div style="break-inside:avoid"><span style="color:#57534e">Gender:</span> Prefer not to say</div><div style="break-inside:avoid"><span style="color:#57534e">Race:</span> Prefer not to say</div><div style="break-inside:avoid"><span style="color:#57534e">Hispanic or Latino:</span> Prefer not to say</div><div style="break-inside:avoid"><span style="color:#57534e">Veteran status:</span> Not a protected veteran</div><div style="break-inside:avoid"><span style="color:#57534e">Disability:</span> Prefer not to say</div><div style="break-inside:avoid"><span style="color:#57534e">How I heard about a job:</span> Company website</div><div style="break-inside:avoid"><span style="color:#57534e">Required consent and privacy boxes:</span> I agree</div></div>
 <div class="note">{NOTE}</div>"""
 
 LETTER = f"""{CSS}<div class="serif">
