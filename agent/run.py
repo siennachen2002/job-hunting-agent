@@ -290,6 +290,7 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
                 if x.answer and len(x.answer.split()) > 25:
                     x.answer, _ = llm.clean_text(x.answer, "why_us" if llm.WHY_US.search(x.question) else "answer")
             config.SCREENS.mkdir(parents=True, exist_ok=True); shot = str(config.SCREENS / f"app{a['id']}.png")
+            _step(5, "Filling in the form")
             r = fill(j["apply_url"], {x.question: x.answer for x in fa.answers if x.answer}, a["resume_pdf"], shot)
             dump = fa.model_dump()
             for line in r.get("log", []):   # a required field the form couldn't fill is a question for the person, always
@@ -420,6 +421,11 @@ def demo_one(con, boards: int = 12) -> int | None:
     return compose_job(con, top["id"]) if top else None
 
 
+def _step(n: int, label: str) -> None:
+    """A progress line the dashboard reads from the prepare log: the red bar under the job's card."""
+    print(f"STEP {n}/5 {label}", flush=True)
+
+
 def compose_job(con, job_id: int) -> int:
     """Not started → Waiting for review: résumé from storybook lines (no model), then fill the form or draft the email."""
     from .setup_answers import require
@@ -438,6 +444,7 @@ def compose_job(con, job_id: int) -> int:
         raise SystemExit(f"match {m:.0f}% is below 50%: not applying (your rule)")
     sc = json.loads(job["score_json"]) if job.get("score_json") else {}
     lens = sc.get("role_family") or "product_design"
+    _step(1, "Reading the posting and its form")
     content = assemble(lens, job.get("sector"), posting_text=(job.get("title") or "") + " " + (job.get("description") or ""), posting_title=job.get("title") or "")
     from . import llm
     import concurrent.futures as cf
@@ -450,6 +457,7 @@ def compose_job(con, job_id: int) -> int:
         return qs, llm.answer_form(job, qs)
     pool = cf.ThreadPoolExecutor(1); form_future = pool.submit(draft_form)
     align_notes = []
+    _step(2, "Tailoring the résumé")
     try:   # the storybook's lines, reworded in the posting's vocabulary and ordered by its requirements; facts unchanged
         content, align_notes = llm.align_resume(job, content)
         from .voicecheck import lint_resume
@@ -460,6 +468,7 @@ def compose_job(con, job_id: int) -> int:
             llm.shorten_long(content)   # two lines per bullet, even without the alignment
         except Exception:
             pass
+    _step(3, "Writing the summary")
     try:
         content["summary"] = llm.write_summary(job, content)   # the story, for this posting; empty if it can't be kept true
     except Exception:
@@ -471,6 +480,7 @@ def compose_job(con, job_id: int) -> int:
                                    diy_ratio=0.0, diy_notes=f"assembled from storybook lines; lens {lens}\n-- aligned to the posting\n" + "\n".join(align_notes))
     con.execute("UPDATE jobs SET status='applied_draft' WHERE id=?", (job_id,)); con.commit()
     log(con, "compose", "resume", f"lens {lens}", job_id=job_id, app_id=app_id)
+    _step(4, "Answering the form's questions")
     try:
         pre = form_future.result()
         if pre:
@@ -478,7 +488,12 @@ def compose_job(con, job_id: int) -> int:
     except Exception:
         pass   # prepare reads the form itself
     pool.shutdown(wait=False)
-    prepare(con, 1, app_id=app_id)
+    try:
+        prepare(con, 1, app_id=app_id)
+    except BaseException:   # a half-made application shows nowhere: take it back, so the job is in Not started again
+        con.execute("DELETE FROM applications WHERE id=? AND status='draft'", (app_id,))
+        con.execute("UPDATE jobs SET status=? WHERE id=?", (job.get("status") or "new", job_id)); con.commit()
+        raise
     return app_id
 
 

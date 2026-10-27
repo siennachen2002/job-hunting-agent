@@ -676,6 +676,8 @@ def board(tab: str = "review"):
                     continue  # this role already has an application, in this city or another
                 card = {**_facts(j), "apply_url": j.get("apply_url"), "job_id": j["id"], "company": j["company"], "title": _title(j["title"]), "url": j["url"], "match": m, "match_src": src, "location": j.get("location") or "",
                         "why": j.get("score_reason") or "", "preparing": _prep_state(j["id"]), "cities": [j.get("location") or ""]}
+                if card["preparing"] == "running":
+                    card["progress"] = _prep_progress(j["id"])
                 prev = roles.get(key)
                 if prev is None:
                     roles[key] = card; out.append(card); continue
@@ -789,7 +791,34 @@ def _prep_state(job_id):
     if proc is None or not hasattr(proc, "poll"):
         return None
     rc = proc.poll()
-    return "running" if rc is None else ("done" if rc == 0 else f"error: see data/prepare-{job_id}.log")
+    return "running" if rc is None else ("done" if rc == 0 else "error: " + _prep_error(job_id))
+
+
+def _prep_log(job_id) -> str:
+    p = HERE.parent / "data" / f"prepare-{job_id}.log"
+    return p.read_text(encoding="utf-8", errors="replace") if p.exists() else ""
+
+
+def _prep_progress(job_id) -> dict:
+    """The last STEP line of the prepare log: {pct, label} for the red bar under the job's card."""
+    if isinstance(PREP.get(job_id), _Queued):
+        return {"pct": 2, "label": "Waiting its turn"}
+    steps = re.findall(r"^STEP (\d+)/(\d+) (.+)$", _prep_log(job_id), re.M)
+    if not steps:
+        return {"pct": 4, "label": "Starting"}
+    n, of, label = steps[-1]
+    return {"pct": round(100 * (int(n) - .5) / int(of)), "label": label}
+
+
+def _prep_error(job_id) -> str:
+    """Why a prepare stopped, in one sentence the person can act on."""
+    t = _prep_log(job_id)
+    if re.search(r"credit balance is too low", t, re.I):
+        return "the model account is out of credit. Check Setup → Models, then try again."
+    if re.search(r"not logged in|please run /login|authentication", t, re.I):
+        return "Claude Code isn't signed in. Run `claude` once in a terminal and sign in, then try again."
+    m = re.findall(r"^(?:SystemExit|RuntimeError|\w+Error): (.+)$", t, re.M) or [l for l in t.strip().splitlines()[-1:]]
+    return (m[-1].strip()[:200] if m else "it stopped") + "."
 
 
 @app.post("/api/jobs/{job_id}/skip")

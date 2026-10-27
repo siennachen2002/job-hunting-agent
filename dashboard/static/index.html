@@ -364,6 +364,7 @@
     .chat { max-height:50vh; } .msg { max-width:90%; }
   }
 details.fold summary{list-style:none}details.fold summary::-webkit-details-marker{display:none}details.fold summary b::before{content:'▸ ';color:var(--mute)}details.fold[open] summary b::before{content:'▾ '}
+.prep{margin-top:6px}.prep .pl{font-size:12px;color:var(--mute);margin-bottom:4px}.prep .pb{height:3px;border-radius:2px;background:var(--line,#e7e5e4);overflow:hidden}.prep .pb i{display:block;height:100%;background:var(--red,#dc2626);transition:width .8s ease}
 </style>
 </head>
 <body>
@@ -483,7 +484,9 @@ async function saveAnswers(id, isEmail, b) {
 }
 async function prep(id, b) { b.innerHTML = '<span class="spin"></span>Preparing…'; b.disabled = true; const r = await post(`/api/jobs/${id}/prepare`); if (r && r.ok === false) { alert(r.msg); return render(); } watchPrep(); }
 async function skip(id) { await post(`/api/jobs/${id}/skip`); sel[sub] = null; render(); }
-function watchPrep() { clearInterval(poll); poll = setInterval(async () => { const t = await api('/api/board?tab=todo'); if (!t.some(x => x.preparing === 'running')) { clearInterval(poll); render(); } }, 3000); }
+function watchPrep() { clearInterval(poll); poll = setInterval(async () => { const t = await api('/api/board?tab=todo');
+  t.forEach(x => { const el = document.querySelector(`.prep[data-job="${x.job_id}"]`); if (el && x.progress) { el.querySelector('.pl').textContent = x.progress.label + '…'; el.querySelector('i').style.width = x.progress.pct + '%'; } });   // the bar moves in place
+  if (!t.some(x => x.preparing === 'running')) { clearInterval(poll); render(); } }, 3000); }
 
 let sel = {review: null, todo: null, applied: null}, editing = false, mobileOpen = false;
 const prepPick = new Set();   // Not started: jobs ticked for Prepare selected
@@ -514,7 +517,8 @@ function queueItem(c) {
   const blanks = (c.blanks || []).length;
   const st = sub === 'review' ? (needs || blanks ? `<div class="st o"><span class="dot"></span>${[needs && `${needs} ${needs === 1 ? 'question' : 'questions'} for you`, blanks && `${blanks} ${blanks === 1 ? 'blank' : 'blanks'} to fill`].filter(Boolean).join(' · ')}</div>` : `<div class="st r"><span class="dot"></span>Ready to approve</div>`)
     : sub === 'applied' ? appliedLine(c)
-    : c.preparing === 'running' ? `<div class="st o"><span class="spin"></span>Preparing…</div>` : (c.location ? `<div class="st" style="display:block">${esc(c.location)}</div>` : '');
+    : c.preparing === 'running' ? `<div class="prep" data-job="${c.job_id}"><div class="pl">${esc((c.progress || {}).label || 'Preparing')}…</div><div class="pb"><i style="width:${(c.progress || {}).pct || 4}%"></i></div></div>`
+    : (c.preparing || '').startsWith('error') ? `<div class="st" style="display:block;color:var(--red)">Couldn't prepare: ${esc(c.preparing.slice(7))}</div>` : (c.location ? `<div class="st" style="display:block">${esc(c.location)}</div>` : '');
   const item = `<button class="qi ${keyOf(c) === sel[sub] ? 'on' : ''}" onclick="pickJob(${keyOf(c)})">${mono(c.company)}<div class="t"><div class="c">${esc(c.company)}</div><div class="ti">${esc(c.title)}</div>${st}</div>${ring(c, true)}</button>`;
   if (sub !== 'todo') return item;
   const busy = c.preparing === 'running';

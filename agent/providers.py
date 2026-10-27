@@ -161,11 +161,15 @@ def _claude_code(system_blocks, user, schema: Type[T], effort, max_tokens, s) ->
     cmd = ["claude", "-p", prompt, "--output-format", "json", "--append-system-prompt", _flatten(system_blocks)]
     if s.get("name"):
         cmd += ["--model", s["name"]]
-    out = subprocess.run(cmd, capture_output=True, text=True, timeout=1200, stdin=subprocess.DEVNULL)   # no stdin wait
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}   # your Claude login, never API credits
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=1200, stdin=subprocess.DEVNULL, env=env)   # no stdin wait
     if out.returncode != 0:
         err = "\n".join(l for l in (out.stderr + out.stdout).splitlines() if l.strip() and "no stdin data" not in l)
         raise RuntimeError(err[-2000:] or f"claude exited with {out.returncode}")
-    return schema.model_validate_json(_extract_json(json.loads(out.stdout).get("result", "")))
+    res = json.loads(out.stdout)
+    if res.get("is_error"):
+        raise RuntimeError(f"Claude: {res.get('result') or 'error'}")
+    return schema.model_validate_json(_extract_json(res.get("result", "")))
 
 
 CALL = {"anthropic": _anthropic, "claude-code": _claude_code, "ollama": _openai_compat, "openai": _openai_compat}
