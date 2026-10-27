@@ -149,12 +149,12 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 # one element per option: tick it when the group's answer names this option,
                 # or when the option itself is a standing answer (a demographic choice or a "not a veteran" line)
                 opt = (f.get("options") or [""])[0]
-                if f["type"] == "radio":
+                group_opts = [x.get("options", [""])[0] for x in fields if x["type"] == f["type"] and (x.get("name") or x["label"]) == (f.get("name") or f["label"])]
+                if f["type"] == "radio" or len(group_opts) > 1:   # a choice among options: a required one left empty is caught below
                     g = radios.setdefault(f.get("name") or f["label"], {"label": f["label"], "required": f["required"], "ticked": False})
                     g["required"] = g["required"] or f["required"]
                 grp = _lookup(answers, lab) or standing_answer(f["label"])
                 if f["type"] == "radio" and grp:   # a yes/no answer to a question whose options are places or choices
-                    group_opts = [x.get("options", [""])[0] for x in fields if x["type"] == "radio" and (x.get("name") or x["label"]) == (f.get("name") or f["label"])]
                     if not any(_norm(o) in ("yes", "no") for o in group_opts):
                         grp = standing_answer(f["label"], group_opts) or grp
                 own = standing_answer(opt, as_option=True)
@@ -162,7 +162,9 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                     tick = bool(grp) and _norm(grp).startswith("yes")
                 else:
                     tick = (own == "Yes") if own in ("Yes", "No") else bool(grp and _norm(opt) and (_norm(opt) == _norm(grp) or _norm(opt) in _norm(grp)))
-                if tick and f["type"] == "radio":
+                    if not tick and grp and len(group_opts) > 1 and not any(_norm(o) in ("yes", "no") for o in group_opts):
+                        tick = best_option(str(grp), group_opts) == opt   # "United States" ticks "US"
+                if tick and (f.get("name") or f["label"]) in radios:
                     radios[f.get("name") or f["label"]]["ticked"] = True
                 if tick:
                     try:
@@ -209,7 +211,11 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                             if not pick and names and again:
                                 pick = best_option(again, names)
                             for term in ([] if pick else _search_terms(val)):   # long lists load as you type
-                                loc.fill(term, timeout=3000); pg.wait_for_timeout(1800)
+                                loc.fill(term, timeout=3000)
+                                for _ in range(12):   # search results arrive at network speed: wait until they do (up to ~5 s)
+                                    pg.wait_for_timeout(400)
+                                    if read():
+                                        break
                                 pick = best_option(val, read())
                                 if pick:
                                     break
@@ -217,7 +223,8 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                                 pg.get_by_role("option", name=pick, exact=True).first.click(timeout=3000)
                                 log.append(f"chose {pick[:30]} → {f['label'][:50]}")
                             else:
-                                pg.keyboard.press("Escape"); log.append(f"UNFILLED (no matching option for '{val[:30]}'): {f['label']}")
+                                pg.keyboard.press("Escape")   # an optional field with no fitting option is left empty; only a required one blocks Submit
+                                log.append(f"UNFILLED (no matching option for '{val[:30]}'): {f['label']}" if f["required"] else f"left empty, no fitting option for '{val[:30]}': {f['label']}")
                             continue
                         opt.click(timeout=3000)
                         log.append(f"chose {val[:30]} → {f['label'][:50]}")

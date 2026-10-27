@@ -67,6 +67,8 @@ def simple_answer(label: str) -> str | None:
         return None   # arbitration, certifications, export control, background checks: always the person's own decision
     rules = [
         (r"undergrad(uate)? gpa|bachelor.*gpa", s.get("undergrad_gpa")),
+        (r"countr(y|ies) (where )?you (anticipate|plan|expect|intend|will|would)( to)? (be )?work|which countr(y|ies) (will|would) you (be )?work",
+         re.split(r"[;,/]", s.get("authorized_in") or "")[0].strip() or None),   # where the work happens: the home country
         (r"(graduate|master'?s?|ms) gpa", s.get("grad_gpa")),
         (r"exercise|work sample|portfolio( url| link)?|shared url|link to (your )?(work|portfolio)|personal website|^website", s.get("website")),
         (r"linkedin", s.get("linkedin")),
@@ -74,6 +76,8 @@ def simple_answer(label: str) -> str | None:
         (r"how did you (hear|find|learn)", s.get("how_heard") or "Company website"),
         (r"opt[- ]?in.*(whatsapp|sms|text message|marketing|newsletter)|(whatsapp|sms|text) (messages|updates)", "No"),   # marketing opt-ins: no
         (r"^\s*(current )?location( \(city\))?\s*\*?\s*$|where are you (currently )?(located|based)|city of residence", s.get("city")),
+        (r"(currently )?(based|located|live) in the (nyc|new york( city)?) (metro|area|metropolitan)",
+         None if not s.get("city") else ("Yes" if re.search(r"new york|\bny\b|brooklyn|queens|bronx|jersey city|hoboken|newark|\bnj\b", s["city"], re.I) else "No")),
         (r"(expected )?graduation date|when (do|will) you graduate|currently enrolled.*graduat", s.get("grad_date")),
         (r"earliest (you could|you can|date you could|start)|when (can|could) you start|available to start|start date", s.get("earliest_start")),
         (r"(come|commute) (in)?to the office|in[- ]office|in an office|from (the|an|our) office|on-?site|in[- ]person|days (a|per) week|hybrid",
@@ -82,7 +86,7 @@ def simple_answer(label: str) -> str | None:
          None if not (s.get("sponsorship_now") or s.get("sponsorship_future")) else
          ("Yes" if "Yes" in (s.get("sponsorship_now"), s.get("sponsorship_future")) else "No")),
         (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|\bi consent to\b|(review and )?acknowledge .*(agreement|policy|notice|terms)",
-         "Yes" if s.get("consent", "").startswith("Tick") else None),
+         "Yes" if re.match(r"\s*(tick|i agree|yes)", s.get("consent", ""), re.I) else None),
     ]
     for pat, val in rules:
         if val and re.search(pat, l, re.I):
