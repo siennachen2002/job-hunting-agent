@@ -890,9 +890,10 @@ def _fill_standing(text: str) -> None:
     try:
         changed = sa.fill_from(text)
         left = sa.missing()
-        msg = (f"Filled {len(changed)} standing answer{'s' if len(changed) != 1 else ''}: {', '.join(labels[k] for k in changed)}." if changed
+        n = len(changed)   # a long list reads like questions: name the fields only when there are a few
+        msg = (f"Filled {n} standing answer{'s' if n != 1 else ''}" + (f": {', '.join(labels[k] for k in changed)}." if n <= 5 else ".") if changed
                else "Nothing in that answers a standing question.")
-        msg += (f" Still blank: {', '.join(left)}. Tell me those, or fill them in below." if left else " All required ones are done.")
+        msg += (f" Still needed: {', '.join(left)}. Say them, or fill them in below." if left else " Nothing left to ask you.")
         chat.add("agent", msg)
     except Exception as e:
         chat.add("agent", f"I couldn't fill the standing answers: {str(e)[:160]}")
