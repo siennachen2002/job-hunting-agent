@@ -198,7 +198,7 @@ def refresh_status():
         # the update changed the app's code: start this server again on it, a moment after answering
         import os, sys, threading
         REFRESH["restarted_for"] = last.get("at"); restarting = True
-        threading.Timer(.6, lambda: os.execv(sys.executable, [sys.executable, "-m", "dashboard.app"])).start()
+        _restart_soon()
     return {"running": running, "failed": bool(p and p.poll() not in (None, 0)), "restarting": restarting, **last}
 
 
@@ -438,8 +438,16 @@ class AccountPick(BaseModel):
 
 
 def _restart_soon():
-    import sys, threading
-    threading.Timer(.5, lambda: os.execv(sys.executable, [sys.executable, "-m", "dashboard.app"])).start()
+    """Restart the dashboard, but never in the middle of writing the storybook: wait for it (up to 5 minutes)."""
+    import sys, threading, time
+    from agent.storybook import STATUS
+    def go():
+        for _ in range(600):
+            if STATUS.get("state") != "running":
+                break
+            time.sleep(.5)
+        os.execv(sys.executable, [sys.executable, "-m", "dashboard.app"])
+    threading.Timer(.5, go).start()
 
 
 @app.post("/api/accounts/switch")
@@ -954,6 +962,24 @@ def tell(t: Tell):
     return {"ok": True, "msg": "thinking"}
 
 
+@app.post("/api/storybook/retry")
+def storybook_retry():
+    """The chat's Try again: the same files and note as the run that stopped."""
+    from agent.storybook import resume_add
+    ok = resume_add()
+    if ok:
+        CHAT["add"] = True
+    return {"ok": ok}
+
+
+@app.on_event("startup")
+def _resume_storybook():
+    """A storybook addition cut off by a restart picks up again, and the chat reports it when done."""
+    from agent.storybook import resume_add
+    if resume_add():
+        CHAT["add"] = True
+
+
 @app.get("/api/chat")
 def chat_history():
     """The chat box's history. Reports work that finished since (storybook additions, suggestions) as agent messages."""
@@ -962,10 +988,17 @@ def chat_history():
     if CHAT.get("add") and STATUS.get("state") != "running":
         CHAT.pop("add")
         n = len(STATUS.get("changes") or [])
-        chat.add("agent", f"Storybook updated: {n} change{'s' if n != 1 else ''}." if STATUS.get("state") == "done" else
-                 f"Stopped adding to your storybook{': ' + str(STATUS.get('error'))[:160] if STATUS.get('error') else '.'}")
-        if STATUS.get("state") == "done" and n:   # the next step is the person's: how many matching jobs to look for
-            chat.add("agent", "Your storybook is ready. Want me to look for matching jobs now? Choose how many and start.", action="find_jobs")
+        if STATUS.get("state") == "done":
+            from agent import config
+            has = any(len(f.read_text(encoding="utf-8").splitlines()) > 2 for f in config.MASTER_DIR.glob("0[23]-*.md"))
+            # the next step is always offered: how many matching jobs to look for
+            chat.add("agent", (f"Storybook updated: {n} change{'s' if n != 1 else ''}. " if n else "") +
+                     ("Want me to look for matching jobs now? Choose how many and start." if has else
+                      "Nothing about you was in that. Tell me about your work, or drop your résumé."), action="find_jobs" if has else None)
+        else:
+            err = str(STATUS.get("error") or "").strip().splitlines()
+            chat.add("agent", "I couldn't finish adding to your storybook" + (f" ({err[-1][:140]})" if err else "") + ". Nothing was lost.",
+                     action="retry_add")
     d = CHAT.get("find")
     if d is not None and hasattr(d, "poll") and d.poll() is not None:
         CHAT.pop("find"); before = CHAT.pop("find_after", 0)

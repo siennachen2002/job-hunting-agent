@@ -161,9 +161,10 @@ def _claude_code(system_blocks, user, schema: Type[T], effort, max_tokens, s) ->
     cmd = ["claude", "-p", prompt, "--output-format", "json", "--append-system-prompt", _flatten(system_blocks)]
     if s.get("name"):
         cmd += ["--model", s["name"]]
-    out = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=1200, stdin=subprocess.DEVNULL)   # no stdin wait
     if out.returncode != 0:
-        raise RuntimeError(out.stderr[-2000:])
+        err = "\n".join(l for l in (out.stderr + out.stdout).splitlines() if l.strip() and "no stdin data" not in l)
+        raise RuntimeError(err[-2000:] or f"claude exited with {out.returncode}")
     return schema.model_validate_json(_extract_json(json.loads(out.stdout).get("result", "")))
 
 

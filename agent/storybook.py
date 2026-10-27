@@ -157,6 +157,8 @@ def add_from(files: list[tuple[str, str]], note: str, person: str = "") -> None:
     STATUS.clear(); STATUS.update(state="running", mode="add", reference=" · ".join(names + (["your note"] if note.strip() else [])),
                                   prompt=note, total=len(files) + 1, done=0, changes=[], current="")
     snapshot(f"before adding from {', '.join(names) or 'your note'}")
+    pending = config.PROFILE_DIR / ".adding.json"   # survives a restart: the dashboard picks the job up again on start
+    pending.write_text(json.dumps({"files": files, "note": note, "person": person}, ensure_ascii=False), encoding="utf-8")
     from .prompts import STORYBOOK_ADD as task
     try:
         corpus = []
@@ -177,13 +179,27 @@ def add_from(files: list[tuple[str, str]], note: str, person: str = "") -> None:
             if a.line.strip() and _add_line(f, entry, a.context.strip(), a.line.strip() + (f" [{', '.join(tags)}]" if tags else "")):
                 STATUS["changes"].append({"where": a.entry.split(" · ")[0], "before": "", "after": a.line.strip(), "why": f"from {a.source}"})
         STATUS["done"] += 1
+        pending.unlink(missing_ok=True)
         others = [t for n, t in files if n in res.about_someone_else]
         if not STATUS["changes"] and len(others) == 1:   # one résumé they like and nothing about them: learn its style
             restore_previous()
             return learn_from(others[0], res.about_someone_else[0], note)
         STATUS["state"] = "done"
-    except Exception as ex:  # keep what was done; the snapshot can undo it
+    except Exception as ex:  # .adding.json stays, so "Try again" can run the same files again
         STATUS.update(state="error", error=str(ex)[:300])
+
+
+def resume_add() -> bool:
+    """An addition cut off by a restart (Update app, account switch) starts again from the same files."""
+    p = config.PROFILE_DIR / ".adding.json"
+    if not p.exists() or STATUS.get("state") == "running":
+        return False
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        p.unlink(missing_ok=True); return False
+    restore_previous()   # back to the storybook as it was before the cut-off run, so nothing is added twice
+    return start_add_from([tuple(x) for x in d["files"]], d.get("note", ""), d.get("person", ""))
 
 
 def start_add_from(files: list[tuple[str, str]], note: str, person: str = "") -> bool:
