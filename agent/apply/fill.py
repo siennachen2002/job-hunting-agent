@@ -100,6 +100,10 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
         if "not found" in pg.inner_text("body")[:300].lower():
             close(); return {"ok": False, "error": "posting closed", "log": log}
         fields = pg.evaluate(FIELDS_JS)
+        for _ in range(30):   # the form can render seconds after the page: wait for it (up to ~15 s)
+            if fields:
+                break
+            pg.wait_for_timeout(500); fields = pg.evaluate(FIELDS_JS)
         # files first: some ATSs (Ashby) parse an uploaded résumé and reset the form state, wiping earlier typing
         fields.sort(key=lambda f: 0 if f["type"] == "file" else 1)
         uploaded = False
