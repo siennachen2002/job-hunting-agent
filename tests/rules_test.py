@@ -28,6 +28,13 @@ check("needs sponsorship", ask("Do you require visa sponsorship?"), "Yes")
 check("authorized without sponsorship", ask("Are you authorized to work in the US without sponsorship?"), "No")
 check("without requiring sponsorship", ask("Are you legally authorized to work in the United States without requiring visa sponsorship?"), "No")
 check("sponsor you", ask("Will you require Acme to sponsor you for a work visa?"), "Yes")
+SA.update(sponsorship_now="No", sponsorship_future="No", sponsorship_opt_cpt="Yes")   # the OPT/CPT rule
+check("future only, no OPT", ask("Will you now or in the future require sponsorship?"), "No")
+check("names OPT", ask("Will you require sponsorship, including OPT or CPT?"), "Yes")
+check("on OPT", ask("Are you currently on OPT?"), "Yes")
+check("without sponsorship, no OPT", ask("Are you authorized to work in the US without sponsorship?"), "Yes")
+check("opt out is not OPT", ask("You may opt out of emails at any time"), None)
+SA.update(sponsorship_now="Yes", sponsorship_future="Yes", sponsorship_opt_cpt="")
 # an answer must fit the question's shape
 check("yes/no question gets no link", ask("Are you comfortable completing a take-home design exercise?"), None)
 check("how many gets no yes", ask("How many days per week can you work from the office?"), None)

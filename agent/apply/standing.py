@@ -58,7 +58,7 @@ SELF_ID = re.compile(r"veteran|disabilit|gender|\brace\b|ethnic|hispanic|latin[o
 LEGAL = re.compile(r"arbitrat|certify|attest|export control|export[- ]control|bound by|background check|criminal|perjury|true and (complete|correct)", re.I)
 
 
-OPT_CPT = re.compile(r"\b(stem )?opt\b|\bcpt\b|\bf-?1\b|optional practical training|curricular practical training", re.I)
+OPT_CPT = re.compile(r"\b(stem )?opt\b(?![- ]?(in|out)\b)|\bcpt\b|\bf-?1\b|optional practical training|curricular practical training", re.I)
 
 
 def _sponsor(l: str, s: dict) -> str | None:
