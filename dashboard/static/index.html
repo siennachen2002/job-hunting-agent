@@ -287,6 +287,14 @@
   .sec { font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; font-weight:600; color:var(--mute); margin:28px 0 10px; }
   .sugg { display:flex; gap:16px; align-items:flex-start; } .sugg .x { flex:1; min-width:0; font-size:14px; } .sugg .x .w { font-size:12.5px; color:var(--mute); margin-bottom:4px; }
   .sugg s { color:var(--faint); display:block; font-size:13px; }
+  .agree { font-size:15px; color:var(--ink2); line-height:1.55; } .agree b { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .yt { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  .yt th { text-align:right; font-weight:500; color:var(--mute); font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--line); }
+  .yt td { text-align:right; padding:6px 8px; border-bottom:1px solid var(--line2); color:var(--ink2); }
+  .yt th:first-child, .yt td:first-child { text-align:left; } .yt tr.quiet td { color:var(--faint); }
+  .yt-wrap { overflow-x:auto; }
+  .oc { display:flex; gap:12px; align-items:flex-start; font-size:14px; padding:10px 0; border-bottom:1px solid var(--line2); } .oc:last-child { border:0; }
+  .oc .x { flex:1; min-width:0; } .oc .d { font-size:12.5px; color:var(--mute); margin-top:2px; }
 
   .reader { display:grid; grid-template-columns:200px minmax(0,1fr); background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; min-height:420px; }
   .toc { border-right:1px solid var(--line2); padding:14px 10px; display:flex; flex-direction:column; gap:1px; background:color-mix(in srgb, var(--sunk) 40%, var(--surface)); }
@@ -1089,10 +1097,38 @@ async function testSetup(what, btn) {
   out.textContent = r.ok ? (r.ms != null ? `${what === 'draft' ? 'Draft model' : 'Model'} answered in ${(r.ms / 1000).toFixed(1)} s (${r.model}).` : r.msg) : (r.error || r.msg || 'Failed');
 }
 
+// How the agent is doing: agreement with your Good/Nope, suggestions checked against them, what applied changes did, sources
+const OUTCOME = {helped: ['Helped', 'var(--green)'], hurt: ['Hurt', 'var(--red)'], no_change: ['No clear change', 'var(--mute)'],
+  too_early: ['Too early', 'var(--faint)'], na: ['Applied', 'var(--faint)']};
+const KIND = {weights: 'Weights', drop_titles: 'Titles to skip', source_off: 'Stop reading', preference: 'Preferences',
+  brief_example: 'Writing brief', storybook_line: 'Storybook', ban_phrase: 'Banned phrase'};
+async function suggestNow(b) {
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>Looking…';
+  const r = await post('/api/improve/suggest');
+  toast(`${r.made ? r.made + ' suggestion' + (r.made === 1 ? '' : 's') + ' from your verdicts. ' : ''}The agent is also reading your notes and verdicts; its suggestions appear here in a minute.`);
+  render();
+}
+function howItGoes(im) {
+  const agree = im.agreement != null
+    ? `<div class="agree">A post you marked Good scored above one you marked Nope <b>${im.agreement}%</b> of the time <span style="color:var(--mute)">(${im.good} Good, ${im.nope} Nope)</span>.</div>`
+    : `<div class="agree">Mark at least ${im.min_each} posts Good and ${im.min_each} Nope (Job applications → Not started) to see how well the scores agree with you. <span style="color:var(--mute)">So far: ${im.good} Good, ${im.nope} Nope.</span></div>`;
+  const pend = im.pending.map(x => `<div class="panel sugg"><div class="x"><div class="w">${esc(KIND[x.kind] || x.kind)} · ${esc(x.reason)}</div>${x.before && !['weights'].includes(x.kind) ? `<s>${esc(x.before)}</s>` : ''}${x.kind === 'weights' ? '' : esc(x.after)}</div>
+      <div style="display:flex;gap:6px;flex:none"><button class="btn sm primary" onclick="prop(${x.id},'approve')">Apply</button><button class="btn sm quiet" onclick="prop(${x.id},'reject')">Dismiss</button></div></div>`).join('');
+  const oc = im.outcomes.map(o => { const [l, col] = OUTCOME[o.verdict] || OUTCOME.na; return `<div class="oc"><span class="stg" style="--c:${col}">${l}</span><div class="x"><div>${esc(KIND[o.kind] || o.kind)}: ${esc(o.reason || o.after || '')}</div><div class="d">${esc(o.text)}</div></div>
+      <button class="btn sm quiet" onclick="prop(${o.id},'revert')">${I.undo}Undo</button></div>`; }).join('');
+  const src = im.sources.map(y => `<tr class="${y.quiet ? 'quiet' : ''}"><td>${esc(y.source)}${y.quiet ? ' · gives nothing' : ''}</td><td>${y.seen}</td><td>${y.passed}</td><td>${y.scored}</td><td>${y.kept}</td><td>${y.good}</td><td>${y.nope}</td></tr>`).join('');
+  return `<div class="panel">${agree}<div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" ${im.learning === 'running' ? 'disabled' : ''} onclick="suggestNow(this)">${im.learning === 'running' ? '<span class="spin"></span>Reading your verdicts…' : 'Suggest changes'}</button>
+      <span class="hint" style="margin:0">Code proposes weights, titles to skip and boards to stop reading, each checked on your verdicts; the agent proposes rubric wording. Nothing changes until you apply it.</span></div></div>
+    ${pend ? `<div class="sec">Suggested changes · ${im.pending.length}</div>${pend}` : ''}
+    ${oc ? `<div class="sec">What your changes did</div><div class="panel">${oc}</div>` : ''}
+    <div class="sec">Sources</div><div class="panel yt-wrap"><table class="yt"><tr><th>Board</th><th>Seen</th><th>Passed</th><th>Scored</th><th>Kept</th><th>Good</th><th>Nope</th></tr>${src}</table>
+      <div class="hint" style="margin:10px 0 0">Passed: through the free keyword pass. Kept: in Not started, being prepared or applied to.</div></div>
+    <div class="sec">Everything the agent did</div>`;
+}
 async function renderActivity(p) {
-  const ev = await api('/api/events');
+  const [ev, im] = await Promise.all([api('/api/events'), api('/api/improve')]);
   const t = s => new Date(s).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-  p.innerHTML = `<div class="ph"><div><h1>Activity</h1><p class="sub">Everything the agent did, newest first.</p></div></div>` + (ev.length
+  p.innerHTML = `<div class="ph"><div><h1>Activity</h1><p class="sub">How your agent is doing, and everything it did, newest first.</p></div></div>` + howItGoes(im) + (ev.length
     ? `<div class="feed">${ev.map(e => `<div class="ev"><time>${t(e.at)}</time><span class="node ${esc(e.node)}">${esc(e.node)}</span><div><div>${esc(e.action)}</div>${e.detail ? `<div class="d">${esc(e.detail)}</div>` : ''}</div></div>`).join('')}</div>`
     : '<div class="empty">Nothing yet.</div>');
 }

@@ -75,4 +75,6 @@ COVER = ("Draft a cover letter and a 'Why {company}' answer for {first_name}, fo
 LEARN = ("Propose the smallest patches that would have prevented each problem. Prefer one example row in the brief over a new rule; "
          "keep the brief to one page. Use storybook_line only to reword an existing line with the same facts, quoting it exactly in 'before'. "
          "Use ban_phrase for a phrase that should never appear. Use preference for changes to what to apply for, where, or how often: "
-         "replace one exact line of preferences.yaml in 'before' with the edited line in 'after'. Skip notes that need no change.")
+         "replace one exact line of preferences.yaml in 'before' with the edited line in 'after'. Skip notes that need no change. "
+         "Where the person's Good and Nope disagree with the scores, a rubric line may be reworded (kind preference) only when "
+         "several disagreements point the same way. Read the track record: never repeat a dismissed change; propose undoing one that hurt.")

@@ -52,8 +52,13 @@ def _clean_answers(aj: dict) -> list[str]:
         q = x.get("question") or ""
         if LEGAL.search(q) and not SELF_ID.search(q) and x.get("provenance") != "you":
             aj.setdefault("needs_human", []).append(q); notes.append(f"legal declaration handed back: {q[:50]}"); continue
-        if x.get("note") == "standing answer" and standing_answer(q) is None:
+        now = standing_answer(q) if x.get("provenance") != "you" else None   # what you typed yourself is never changed
+        if x.get("note") == "standing answer" and now is None:
             notes.append(f"stale answer dropped: {q[:50]}"); continue
+        yn = lambda v: str(v or "").strip().lower() in ("yes", "no")   # yes/no only: an option the form named stays as it is
+        if now is not None and yn(now) and yn(x.get("answer")) and str(now).strip().lower() != str(x.get("answer")).strip().lower():
+            notes.append(f"{q[:50]}: {x.get('answer')} → {now} (standing answers changed)")
+            x.update(answer=now, note="standing answer")
         keep.append(x)
     aj["answers"] = keep
     aj["needs_human"] = list(dict.fromkeys(aj.get("needs_human") or []))

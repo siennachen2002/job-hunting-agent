@@ -25,6 +25,21 @@ targets:
   avoid_companies: []
   avoid_keywords: []     # e.g. ["defense", "gambling", "crypto"]
 
+prefilter:
+  # The free keyword pass before any model call (agent/run.py · prefilter). Patterns are regular expressions on the
+  # lowercase title (home: on the location). It drops some postings and orders the rest; the model scores what passes.
+  drop_titles: []            # a title matching one is dropped and never scored, e.g. '\bstaff\b'
+  lower_titles:              # a title matching one ranks lower by that much (0-1); the largest that applies counts
+    '\b(staff|principal|director|head of|vp|vice president|manager|lead)\b': 0.4
+    '\bsenior|\bsr\.?\b': 0.2
+  off_role:                  # ranks lower, unless the title is one of your role titles
+    pattern: '\b(software|backend|infrastructure|data|security|sales|account|recruit|finance|legal|mechanical|electrical|hardware|technician)\b'
+    by: 0.5
+  raise_titles:
+    '\b(intern|associate|junior|jr\.?)\b': 0.1
+  home: '\b(united states|usa|us\b|new york|nyc|ny\b|new jersey|brooklyn|san francisco|sf\b|seattle|los angeles|boston|chicago|austin|remote|north america|americas)'
+  elsewhere: 0.35            # a location that doesn't match home (and isn't remote) ranks lower by this much
+
 scoring:
   # What the model scores every posting on: 1-5 per dimension, with a reason and words quoted from the posting.
   # Code checks each quote against the posting and adds the scores up by weight (agent/scoring.py); the model never

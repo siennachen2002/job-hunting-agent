@@ -431,7 +431,7 @@ Revise this one-page résumé as the person asks. Change only what the note asks
 
 ### Learn from notes
 
-**Runs:** The draft model (or the model) · `agent/learn.py` · output schema: `Patches`
+**Runs:** The draft model (or the model) · `agent/improve.py · suggest, outcomes → agent/learn.py · propose` · output schema: `Patches`
 
 **Input**
 
@@ -439,6 +439,8 @@ Revise this one-page résumé as the person asks. Change only what the note asks
 |---|---|---|
 | SQLite | feedback: your notes | **You review** |
 | SQLite | rejection reasons | **You review** |
+| SQLite | verdicts: the Good posts that scored lowest and the Nope posts that scored highest | **Good or Nope** |
+| SQLite | track record: changes applied and what they did, changes dismissed | outside |
 | Markdown | docs/00-house-rules.md | outside |
 | YAML | preferences.yaml | outside |
 
@@ -447,13 +449,15 @@ Revise this one-page résumé as the person asks. Change only what the note asks
 | Type | What | To |
 |---|---|---|
 | JSON | Patches {kind, target, before, after, reason} | **The storybook** |
-| SQLite | proposals (you apply or dismiss each) | **The storybook** |
+| SQLite | proposals (you apply or dismiss each, Activity or Storybook) | **The storybook** |
 
 **Prompt** (`prompts.LEARN`)
 
 ```text
-Propose the smallest patches that would have prevented each problem. Prefer one example row in the brief over a new rule; keep the brief to one page. Use storybook_line only to reword an existing line with the same facts, quoting it exactly in 'before'. Use ban_phrase for a phrase that should never appear. Use preference for changes to what to apply for, where, or how often: replace one exact line of preferences.yaml in 'before' with the edited line in 'after'. Skip notes that need no change.
+Propose the smallest patches that would have prevented each problem. Prefer one example row in the brief over a new rule; keep the brief to one page. Use storybook_line only to reword an existing line with the same facts, quoting it exactly in 'before'. Use ban_phrase for a phrase that should never appear. Use preference for changes to what to apply for, where, or how often: replace one exact line of preferences.yaml in 'before' with the edited line in 'after'. Skip notes that need no change. Where the person's Good and Nope disagree with the scores, a rubric line may be reworded (kind preference) only when several disagreements point the same way. Read the track record: never repeat a dismissed change; propose undoing one that hurt.
 ```
+
+> Code suggests first, from your verdicts, and checks each: weights only when they would rank your Good above your Nope at least 10 points more often; title words that are only ever in your Nope titles; watched companies that never give anything. The model then proposes writing and rubric changes. After you apply one, Activity shows what it did on the posts judged since, with the counts; nothing is called better or worse on fewer than 3.
 
 ## 05 · Out the door, and back
 

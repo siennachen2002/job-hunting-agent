@@ -5,7 +5,8 @@ Output: proposed patches, each small and reviewable:
   - brief_example   add or sharpen one Weak → Strong row in docs/00-house-rules.md (the brief stays one page)
   - storybook_line  replace one line in the storybook with a better-worded one (same facts)
   - ban_phrase      add a phrase to the writing check (profile/learned_patterns.yaml; code is never edited)
-  - preference      change one line of the application strategy in profile/preferences.yaml
+  - preference      change one line of the application strategy in profile/preferences.yaml (a rubric line included)
+From your Good and Nope verdicts, by code (agent/improve.py): weights, drop_titles (prefilter) and source_off.
 Nothing is applied until you approve it on the dashboard's Learn page. Every applied patch keeps its before/after,
 so it can be reverted.
 """
@@ -51,7 +52,8 @@ def propose(con) -> int:
     init(con)
     notes = [dict(r) for r in con.execute("SELECT * FROM feedback WHERE used=0").fetchall()]
     rejected = [dict(r) for r in con.execute("SELECT id, error FROM applications WHERE status='withdrawn' AND error IS NOT NULL AND error!=''").fetchall()]
-    if not notes and not rejected:
+    verdicts = _disagreements(con)   # new Good/Nope since the last time: where the scores and you disagree
+    if not notes and not rejected and not verdicts:
         return 0
     from .llm import _system
     from .providers import structured
@@ -59,14 +61,42 @@ def propose(con) -> int:
             "\n\n## Reasons given when rejecting drafts\n" + "\n".join(f"- (app {r['id']}) {r['error']}" for r in rejected) +
             "\n\n## Current brief\n" + (config.DOCS_DIR / "00-house-rules.md").read_text(encoding="utf-8"))
     from .prompts import LEARN as task
+    if verdicts:
+        body += "\n\n## Your Good and Nope where the scores disagree\n" + verdicts
+    body += "\n\n## Track record\n" + _track_record(con)
     body += "\n\n## Current preferences.yaml\n" + (config.PROFILE_DIR / "preferences.yaml").read_text(encoding="utf-8")
     res = structured(_system(task), body, Patches, effort="high", max_tokens=6000, tier="draft")   # you apply each one
     for p in res.patches:
         con.execute("INSERT INTO proposals(at, kind, target, before, after, reason, source) VALUES (?,?,?,?,?,?,?)",
                     (db.now(), p.kind, p.target, p.before, p.after, p.reason, p.source))
     con.execute("UPDATE feedback SET used=1 WHERE used=0")
+    db.set_setting(con, "learn_verdicts_at", db.now())
     con.commit()
     return len(res.patches)
+
+
+def _disagreements(con, n: int = 6) -> str:
+    """The Good posts that scored lowest and the Nope posts that scored highest, with each dimension's score and reason;
+    only when there are verdicts newer than the last suggestions."""
+    from .improve import judged, MIN_EACH
+    rows = judged(con)
+    since = db.get_setting(con, "learn_verdicts_at") or ""
+    if not any(r["at"] > since for r in rows) or sum(r["verdict"] == "good" for r in rows) + sum(r["verdict"] == "nope" for r in rows) < MIN_EACH:
+        return ""
+    good = sorted((r for r in rows if r["verdict"] == "good"), key=lambda r: r["score"])[:n]
+    nope = sorted((r for r in rows if r["verdict"] == "nope"), key=lambda r: -r["score"])[:n]
+    line = lambda r: (f"- {r['verdict'].upper()} ({r['reason'] or 'no reason given'}), scored {r['score']:.0f}: {r['company']} · {r['title']}\n"
+                      + "\n".join(f"    {d['name']}: {d.get('score') or 'unknown'} · {d.get('reason', '')}" for d in r["dims"]))
+    return "\n".join(map(line, good + nope))
+
+
+def _track_record(con) -> str:
+    """Changes already applied (with what they did) and suggestions dismissed: the next suggestions build on them."""
+    from .improve import outcomes
+    done = [f"- applied {o['kind']}: {(o['after'] or '')[:120]} → {o['text']}" for o in outcomes(con)[:10]]
+    no = [f"- dismissed {r['kind']}: {(r['after'] or '')[:120]}" for r in
+          con.execute("SELECT kind, after FROM proposals WHERE status='rejected' ORDER BY decided_at DESC LIMIT 10").fetchall()]
+    return "\n".join(done + no) or "(nothing applied or dismissed yet)"
 
 
 def apply(con, pid: int) -> str:
@@ -96,6 +126,17 @@ def apply(con, pid: int) -> str:
             raise ValueError("the preference line to change was not found")
         s = s.replace(p["before"], p["after"], 1); yaml.safe_load(s)  # refuse to write broken YAML
         path.write_text(s, encoding="utf-8")
+    elif p["kind"] == "weights":
+        from .improve import set_weights, retotal
+        path = config.PROFILE_DIR / "preferences.yaml"
+        path.write_text(set_weights(path.read_text(encoding="utf-8"), json.loads(p["after"])), encoding="utf-8")
+        retotal(con)
+    elif p["kind"] == "drop_titles":
+        path = config.PROFILE_DIR / "preferences.yaml"
+        path.write_text(_drop_titles(path.read_text(encoding="utf-8"), add=json.loads(p["after"])), encoding="utf-8")
+    elif p["kind"] == "source_off":
+        path = config.PROFILE_DIR / "companies.yaml"
+        path.write_text(_source_off(path.read_text(encoding="utf-8"), p["after"], True), encoding="utf-8")
     elif p["kind"] == "ban_phrase":
         import yaml
         path = PATTERNS(); data = yaml.safe_load(path.read_text()) if path.exists() else {}
@@ -123,6 +164,17 @@ def revert(con, pid: int) -> str:
     elif p["kind"] == "preference":
         path = config.PROFILE_DIR / "preferences.yaml"
         path.write_text(path.read_text(encoding="utf-8").replace(p["after"], p["before"], 1), encoding="utf-8")
+    elif p["kind"] == "weights":
+        from .improve import set_weights, retotal
+        path = config.PROFILE_DIR / "preferences.yaml"
+        path.write_text(set_weights(path.read_text(encoding="utf-8"), json.loads(p["before"])), encoding="utf-8")
+        retotal(con)
+    elif p["kind"] == "drop_titles":
+        path = config.PROFILE_DIR / "preferences.yaml"
+        path.write_text(_drop_titles(path.read_text(encoding="utf-8"), remove=json.loads(p["after"])), encoding="utf-8")
+    elif p["kind"] == "source_off":
+        path = config.PROFILE_DIR / "companies.yaml"
+        path.write_text(_source_off(path.read_text(encoding="utf-8"), p["after"], False), encoding="utf-8")
     elif p["kind"] == "ban_phrase":
         import yaml
         path = PATTERNS(); data = yaml.safe_load(path.read_text()) or {}
@@ -132,6 +184,30 @@ def revert(con, pid: int) -> str:
     from .audit import log
     log(con, "learn", "patch-reverted", p["after"][:200])
     return "reverted"
+
+
+def _drop_titles(text: str, add: list[str] = (), remove: list[str] = ()) -> str:
+    """preferences.yaml with prefilter → drop_titles changed in place (comments kept)."""
+    import yaml
+    m = re.search(r"^([ \t]+drop_titles:[ \t]*)(\[.*?\])", text, re.M)
+    if not m:
+        raise ValueError("prefilter → drop_titles was not found in preferences.yaml (as a [list] on one line)")
+    cur = yaml.safe_load(m.group(2)) or []
+    new = [x for x in cur if x not in remove] + [x for x in add if x not in cur]
+    text = text[:m.start(2)] + json.dumps(new) + text[m.end(2):]
+    yaml.safe_load(text)
+    return text
+
+
+def _source_off(text: str, name: str, off: bool) -> str:
+    """companies.yaml with one watched company switched off (or on again), in place."""
+    import yaml
+    m = re.search(r"^([ \t]*- \{name: " + re.escape(name) + r",)( paused: true,)?", text, re.M)
+    if not m:
+        raise ValueError(f"{name} was not found in companies.yaml")
+    text = text[:m.end(1)] + (" paused: true," if off else "") + text[m.end():]
+    yaml.safe_load(text)
+    return text
 
 
 def learned_bans() -> list[str]:

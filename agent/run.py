@@ -20,6 +20,8 @@ def discover(con) -> dict:
     from .audit import log
     counts = {}
     for entry in config.companies():
+        if entry.get("paused"):   # Suggested changes → Stop reading ("off" would read as a YAML boolean)
+            continue
         try:
             jobs = ats.fetch_company(entry)
         except Exception as e:  # network hiccups should not kill the run
@@ -55,37 +57,58 @@ def _patterns() -> tuple[list[str], list[str]]:
     return titles, kws
 
 
+PREFILTER = {   # the defaults; preferences.yaml → prefilter overrides any of them
+    "drop_titles": [],
+    "lower_titles": {r"\b(staff|principal|director|head of|vp|vice president|manager|lead)\b": 0.4, r"\bsenior|\bsr\.?\b": 0.2},
+    "off_role": {"pattern": r"\b(software|backend|infrastructure|data|security|sales|account|recruit|finance|legal|mechanical|"
+                            r"electrical|hardware|technician)\b", "by": 0.5},
+    "raise_titles": {r"\b(intern|associate|junior|jr\.?)\b": 0.1},
+    "home": r"\b(united states|usa|us\b|new york|nyc|ny\b|new jersey|brooklyn|san francisco|sf\b|seattle|los angeles|boston|"
+            r"chicago|austin|remote|north america|americas)",
+    "elsewhere": 0.35,
+}
+
+
+def prefilter_rules() -> dict:
+    return {**PREFILTER, **(config.preferences().get("prefilter") or {})}
+
+
 def prefilter(con) -> tuple[int, int]:
     """Cheap keyword gate before any model call. A posting passes if its title contains a family title word,
-    or its description mentions >= 2 family keywords. Also drops avoid_keywords / avoid_companies."""
+    or its description mentions >= 2 family keywords. Also drops avoid_keywords / avoid_companies and the titles in
+    preferences.yaml → prefilter → drop_titles. What passes gets a keyword rank (kw_score) that orders the model's work;
+    what is dropped says why in score_reason."""
+    import re as _re
     titles, kws = _patterns()
     prefs = config.preferences().get("targets", {})
+    rules = prefilter_rules()
     avoid_k = [a.lower() for a in prefs.get("avoid_keywords", [])]
     avoid_c = [a.lower() for a in prefs.get("avoid_companies", [])]
     title_words = {w for t in titles for w in t.replace("(", " ").replace(")", " ").replace(",", " ").split() if len(w) > 3 and w not in {"only", "focused"}}
     kept = dropped = 0
     for row in db.jobs_by_status(con, "new", 100000):
         t = (row["title"] or "").lower(); d = (row["description"] or "").lower(); c = (row["company"] or "").lower()
-        bad = any(a in t or a in d for a in avoid_k) or any(a in c for a in avoid_c)
+        why = (next((f"prefilter: avoided keyword '{a}'" for a in avoid_k if a in t or a in d), None)
+               or next((f"prefilter: avoided company '{a}'" for a in avoid_c if a in c), None)
+               or next((f"prefilter: title matches '{p}' (drop_titles)" for p in rules["drop_titles"] if _re.search(p, t)), None))
         hit_title = any(w in t for w in title_words)
         hit_kw = sum(1 for k in kws if k in d) >= 2
-        if bad or not (hit_title or hit_kw):
-            con.execute("UPDATE jobs SET status='skipped', score_reason='prefilter' WHERE id=?", (row["id"],)); dropped += 1
-        else:
-            kept += 1
-            import re as _re
-            exact = any(tt in t for tt in titles)
-            kw = (0.6 if exact else 0.35 if hit_title else 0.0) + min(0.3, 0.03 * sum(1 for k in kws if k in d))
-            if _re.search(r"\b(staff|principal|director|head of|vp|vice president|manager|lead)\b", t): kw -= 0.4
-            elif _re.search(r"\bsenior|\bsr\.?\b", t): kw -= 0.2
-            if not exact and _re.search(r"\b(software|backend|infrastructure|data|security|sales|account|recruit|finance|legal|mechanical|electrical|hardware|technician)\b", t): kw -= 0.5
-            if _re.search(r"\b(intern|associate|junior|jr\.?)\b", t): kw += 0.1
-            loc = (row["location"] or "").lower()
-            us_or_remote = bool(row["remote"]) or _re.search(r"\b(united states|usa|us\b|new york|nyc|ny\b|new jersey|brooklyn|san francisco|sf\b|seattle|los angeles|boston|chicago|austin|remote|north america|americas)", loc)
-            if loc and not us_or_remote: kw -= 0.35   # until eligibility in 01-bio.md says otherwise
-            kw = max(0.0, min(1.0, kw))
-            sector_w = config.preferences().get("targets", {}).get("sector_weights", {}).get(row["sector"] or "other", 0.5)
-            con.execute("UPDATE jobs SET kw_score=? WHERE id=?", (round(kw * (0.5 + 0.5 * sector_w), 3), row["id"]))
+        if not why and not (hit_title or hit_kw):
+            why = "prefilter: no role title word, and fewer than 2 role keywords in the description"
+        if why:
+            con.execute("UPDATE jobs SET status='skipped', score_reason=? WHERE id=?", (why, row["id"])); dropped += 1
+            continue
+        kept += 1
+        exact = any(tt in t for tt in titles)
+        kw = (0.6 if exact else 0.35 if hit_title else 0.0) + min(0.3, 0.03 * sum(1 for k in kws if k in d))
+        kw -= max((by for p, by in rules["lower_titles"].items() if _re.search(p, t)), default=0)   # the largest that applies
+        if not exact and _re.search(rules["off_role"]["pattern"], t): kw -= rules["off_role"]["by"]
+        kw += sum(by for p, by in rules["raise_titles"].items() if _re.search(p, t))
+        loc = (row["location"] or "").lower()
+        if loc and not (row["remote"] or _re.search(rules["home"], loc)): kw -= rules["elsewhere"]
+        kw = max(0.0, min(1.0, kw))
+        sector_w = config.preferences().get("targets", {}).get("sector_weights", {}).get(row["sector"] or "other", 0.5)
+        con.execute("UPDATE jobs SET kw_score=? WHERE id=?", (round(kw * (0.5 + 0.5 * sector_w), 3), row["id"]))
     con.commit()
     return kept, dropped
 
@@ -705,7 +728,8 @@ def main(argv=None):
                 print("self-check failed:", e)
             try:
                 from .learn import propose
-                learned = propose(con)
+                from .improve import suggest
+                learned = suggest(con) + propose(con)   # code's checked suggestions, then the model's from your notes and verdicts
             except Exception as e:
                 learned = f"learn failed: {e}"
             summary = {"discovered": found, "prefilter": {"kept": kept, "dropped": dropped}, "jev": {"rated": jev_seen, "skipped": jev_dropped}, "scored": n, "applications_drafted": made, "prepared": prepared, "learn_proposals": learned}

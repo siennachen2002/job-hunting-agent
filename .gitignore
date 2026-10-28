@@ -54,3 +54,6 @@ mac/build/
 
 # the installers create these
 .venv/
+
+# the course's Week 7 job agent: a local reference copy (ideas taken into agent/improve.py, scoring.py, boards.py)
+week7-job-agent/

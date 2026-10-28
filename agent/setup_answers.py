@@ -30,6 +30,8 @@ QUESTIONS = [
     ("Work eligibility", "authorized_in", "Countries where you are authorized to work", "text", None, True, "e.g. United States; Canada"),
     ("Work eligibility", "sponsorship_now", "Do you need visa sponsorship now?", "select", YES_NO, True, ""),
     ("Work eligibility", "sponsorship_future", "Will you need visa sponsorship in the future?", "select", YES_NO, True, ""),
+    ("Work eligibility", "sponsorship_opt_cpt", "When a sponsorship question mentions OPT or CPT, do you need it?", "select", YES_NO, False,
+     "Wins over the two above whenever the question names OPT, CPT or F-1, alone or together with sponsorship."),
     ("Work eligibility", "relocate", "Are you willing to relocate?", "select", YES_NO, True, ""),
     ("Work eligibility", "relocate_where", "If yes, where?", "select",
      ["Anywhere (my country and abroad)", "Within my country", "Abroad only", "Only the places below"], False, ""),

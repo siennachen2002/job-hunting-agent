@@ -58,14 +58,20 @@ SELF_ID = re.compile(r"veteran|disabilit|gender|\brace\b|ethnic|hispanic|latin[o
 LEGAL = re.compile(r"arbitrat|certify|attest|export control|export[- ]control|bound by|background check|criminal|perjury|true and (complete|correct)", re.I)
 
 
+OPT_CPT = re.compile(r"\b(stem )?opt\b|\bcpt\b|\bf-?1\b|optional practical training|curricular practical training", re.I)
+
+
 def _sponsor(l: str, s: dict) -> str | None:
-    """Sponsorship, by what the question asks: 'now or in the future' together is Yes if either is; 'future' alone is the
-    future answer; 'now' alone the present one (OPT counts as now)."""
+    """Sponsorship, by what the question asks. A question that names OPT, CPT or F-1 (alone or with sponsorship) takes the
+    OPT/CPT answer; otherwise 'now or in the future' together is Yes if either is, 'future' alone is the future answer,
+    'now' alone the present one."""
     now, fut = s.get("sponsorship_now"), s.get("sponsorship_future")
+    if OPT_CPT.search(l) and s.get("sponsorship_opt_cpt"):
+        return s["sponsorship_opt_cpt"]
     if not (now or fut):
         return None
     either = "Yes" if "Yes" in (now, fut) else "No"
-    if re.search(r"\bopt\b|\bcpt\b|\bf-?1\b", l, re.I):
+    if OPT_CPT.search(l):
         return now or either
     has_now = re.search(r"\bnow\b|current(ly)?|\btoday\b|at this time|to start", l, re.I)
     has_fut = re.search(r"future|\bever\b|at any (point|time)|later", l, re.I)
@@ -122,7 +128,7 @@ def _simple_answer(label: str) -> str | None:
         # "authorized ... WITHOUT sponsorship" asks the opposite of "do you need sponsorship"
         (r"without (the need for |needing |requiring |requirement of )?(an? )?(employer |visa |company )?(sponsorship|sponsor)",
          {"Yes": "No", "No": "Yes"}.get(_sponsor(l, s) or "")),
-        (r"\b(stem )?opt\b|\bcpt\b|\bf-?1\b", _sponsor(l, s)),   # OPT counts as needing support now
+        (OPT_CPT.pattern, _sponsor(l, s)),   # a question about OPT or CPT takes the OPT/CPT answer
         (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?(immigration|employment)|visa sponsorship|sponsorship|\bsponsor (you|your)\b",
          _sponsor(l, s)),
         (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|\bi consent to\b|(review and )?acknowledge .*(agreement|policy|notice|terms)",

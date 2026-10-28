@@ -367,6 +367,40 @@ def proposal_action(pid: int, action: str):
     raise HTTPException(400)
 
 
+@app.get("/api/improve")
+def improve_summary():
+    """Agreement with your Good/Nope, what each applied change did, each source's yield, and suggestions waiting."""
+    from agent import improve
+    with db.tx() as con:
+        out = improve.summary(con)
+        out["pending"] = [dict(r) for r in con.execute("SELECT * FROM proposals WHERE status='pending' ORDER BY id DESC").fetchall()]
+        out["learning"] = LEARNING.get("state")
+        return out
+
+
+LEARNING: dict = {}
+
+
+@app.post("/api/improve/suggest")
+def improve_suggest():
+    """Code's suggestions now (no model); the model's, from your notes and verdicts, in the background."""
+    from agent import improve
+    with db.tx() as con:
+        n = improve.suggest(con)
+    if LEARNING.get("state") != "running":
+        def run():
+            LEARNING["state"] = "running"
+            try:
+                from agent.learn import propose
+                with db.tx() as con:
+                    LEARNING["made"] = propose(con)
+                LEARNING["state"] = "done"
+            except Exception as e:
+                LEARNING.update(state="error", error=str(e)[:200])
+        _th.Thread(target=run, daemon=True).start()
+    return {"ok": True, "made": n}
+
+
 @app.get("/api/events")
 def events(limit: int = 200):
     from agent.audit import recent

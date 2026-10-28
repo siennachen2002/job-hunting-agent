@@ -157,13 +157,19 @@ NODES = [
                 ("PDF", "the same file, re-rendered; a green dot when done", "review")],
          note="A branch: it changes this one application's résumé only. Asks the storybook can't support are left out and noted."),
     dict(id="learn", step="04", name="Learn from notes", lane="agent", runs="draft", prompt="LEARN", schema="Patches",
-         code="agent/learn.py",
+         code="agent/improve.py · suggest, outcomes → agent/learn.py · propose",
          reads=[("SQLite", "feedback: your notes", "review"),
                 ("SQLite", "rejection reasons", "review"),
+                ("SQLite", "verdicts: the Good posts that scored lowest and the Nope posts that scored highest", "verdict"),
+                ("SQLite", "track record: changes applied and what they did, changes dismissed", ""),
                 ("Markdown", "docs/00-house-rules.md", ""),
                 ("YAML", "preferences.yaml", "")],
          gives=[("JSON", "Patches {kind, target, before, after, reason}", "storybook"),
-                ("SQLite", "proposals (you apply or dismiss each)", "storybook")]),
+                ("SQLite", "proposals (you apply or dismiss each, Activity or Storybook)", "storybook")],
+         note="Code suggests first, from your verdicts, and checks each: weights only when they would rank your Good above your Nope "
+              "at least 10 points more often; title words that are only ever in your Nope titles; watched companies that never "
+              "give anything. The model then proposes writing and rubric changes. After you apply one, Activity shows what it did "
+              "on the posts judged since, with the counts; nothing is called better or worse on fewer than 3."),
     # ------------------------------------------------------------------ 05 · out the door, and back
     dict(id="submit", step="05", name="Submit", lane="agent", runs="code",
          code="agent/run.py · submit_approved · agent/apply/fill.py · Playwright, visible",
