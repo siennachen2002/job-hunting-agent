@@ -164,15 +164,23 @@ def _claude_code(system_blocks, user, schema: Type[T], effort, max_tokens, s) ->
     env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}   # your Claude login, never API credits
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=1200, stdin=subprocess.DEVNULL, env=env)   # no stdin wait
     if out.returncode != 0:
+        try:   # a failed call still prints its JSON result: say what it says ("Credit balance is too low"), not the JSON
+            said = json.loads(out.stdout).get("result")
+        except ValueError:
+            said = None
         err = "\n".join(l for l in (out.stderr + out.stdout).splitlines() if l.strip() and "no stdin data" not in l)
-        raise RuntimeError(err[-2000:] or f"claude exited with {out.returncode}")
+        raise RuntimeError(f"Claude: {said}" if said else err[-2000:] or f"claude exited with {out.returncode}")
     res = json.loads(out.stdout)
     if res.get("is_error"):
         raise RuntimeError(f"Claude: {res.get('result') or 'error'}")
+    used = res.get("modelUsage") or {}   # the model Claude Code actually ran, when none was named
+    if used and not s.get("name"):
+        LAST["model"] = "claude-code:" + max(used, key=lambda m: (used[m] or {}).get("outputTokens", 0))
     return schema.model_validate_json(_extract_json(res.get("result", "")))
 
 
 CALL = {"anthropic": _anthropic, "claude-code": _claude_code, "ollama": _openai_compat, "openai": _openai_compat}
+LAST = {"model": ""}   # the model the last structured() call ran on; scores record it
 
 
 def structured(system_blocks: list[dict], user: str, schema: Type[T], effort: str = "medium",
@@ -184,6 +192,7 @@ def structured(system_blocks: list[dict], user: str, schema: Type[T], effort: st
         s = {**s, "name": os.getenv("JHA_DEMO_MODEL", "claude-haiku-5-5")}   # a live demo has three minutes: the fast model
     if not s or missing(s):
         raise RuntimeError("No model is set up yet: open the dashboard's Setup page, or set JHA_MODEL in .env. " + missing(s))
+    LAST["model"] = label(s)
     return CALL[s["provider"]](system_blocks, user, schema, effort, max_tokens, s)
 
 

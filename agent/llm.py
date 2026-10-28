@@ -31,23 +31,38 @@ def _system(task: str = "") -> list[dict]:
 
 
 # ---------------------------------------------------------------- scoring
+class DimScore(BaseModel):
+    key: str = Field(description="the dimension's key, as listed")
+    score: int = Field(description="1-5 by the dimension's rubric; 0 when the posting says nothing about it")
+    reason: str = Field(description="one plain sentence")
+    evidence: str = Field(description="words copied exactly from the posting that show it; '' when score is 0")
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def _unknown(cls, v):   # "unknown", null or out of range: the posting doesn't say
+        return v if isinstance(v, int) and 0 <= v <= 5 else 0
+
+
 class JobScore(BaseModel):
-    score: int = Field(description="0-100 relevance of this posting to the person, considering role fit, sector priority, seniority and location/visa constraints")
+    """The model's half of ranking. Code checks the quotes and computes the total (agent/scoring.py)."""
     role_family: str = Field(description="which of the person's role families this maps to, or 'none'")
     sector: Literal["climate", "ai", "design_agency", "creative", "tech", "other"]
-    fit_reasons: list[str] = Field(description="3-5 concrete overlaps between the posting and the person's record")
+    dims: list[DimScore] = Field(description="one entry for every scoring dimension")
+    guard: bool = Field(description="true when that role family's seniority guard applies to this posting")
     gaps: list[str] = Field(description="requirements the person does not clearly meet")
     hard_blockers: list[str] = Field(description="dealbreakers: wrong country without visa, clearance, >N years gap, etc. Empty if none")
-    action: Literal["apply", "maybe", "skip"]
     one_line: str = Field(description="one plain sentence to the person about this job, addressing them as 'you'; no pronouns like she/he")
 
 
+def _rank_task() -> str:
+    from . import scoring
+    return P.RANK.format(first_name=config.first_name(), dimensions=scoring.rubric_text(),
+                         roles=json.dumps(config.roles(), ensure_ascii=False))
+
+
 def score_job(job: dict, tier: str = "draft") -> JobScore:
-    roles = config.roles()
-    posting = (f"Company: {job.get('company')}\nTitle: {job.get('title')}\nLocation: {job.get('location')}\n"
-               f"Remote: {job.get('remote')}\nURL: {job.get('url')}\n\n{(job.get('description') or '')[:12000]}")
-    task = P.RANK.format(first_name=config.first_name(), roles=json.dumps(roles, ensure_ascii=False))
-    return structured(_system(task), posting, JobScore, effort="low", max_tokens=2000, tier=tier)   # every posting: the draft model
+    from . import scoring
+    return structured(_system(_rank_task()), scoring.posting_text(job, 12000), JobScore, effort="low", max_tokens=3000, tier=tier)   # every posting: the draft model
 
 
 class ScoredJob(JobScore):
@@ -60,11 +75,10 @@ class JobScores(BaseModel):
 
 def score_jobs_claude_code(jobs: list[dict]) -> dict[int, JobScore]:
     """Without Jev: Claude Code (your login, no API) rates a handful of postings in one call."""
-    roles = config.roles()
-    task = P.RANK.format(first_name=config.first_name(), roles=json.dumps(roles, ensure_ascii=False)) + " Rate every posting below, each on its own."
-    postings = "\n\n".join(f"### Posting id {j['id']}\nCompany: {j.get('company')}\nTitle: {j.get('title')}\nLocation: {j.get('location')}\n"
-                           f"Remote: {j.get('remote')}\n\n{(j.get('description') or '')[:3500]}" for j in jobs)
-    out = structured(_system(task), postings, JobScores, effort="low", max_tokens=8000, tier="claude-code")
+    from . import scoring
+    task = _rank_task() + " Rate every posting below, each on its own."
+    postings = "\n\n".join(f"### Posting id {j['id']}\n{scoring.posting_text(j, 3500)}" for j in jobs)
+    out = structured(_system(task), postings, JobScores, effort="low", max_tokens=16000, tier="claude-code")
     want = {j["id"] for j in jobs}
     return {s.job_id: JobScore(**s.model_dump(exclude={"job_id"})) for s in out.items if s.job_id in want}
 
@@ -122,12 +136,13 @@ class ResumeContent(BaseModel):
     tailoring_notes: list[str] = Field(description="what was emphasised or dropped for this posting, 3-6 items")
 
 
-def tailor_resume(job: dict, score: JobScore | None = None) -> ResumeContent:
+def tailor_resume(job: dict, score: dict | None = None) -> ResumeContent:
     diy_max = config.preferences().get("automation", {}).get("diy_max", 0.15)
     task = P.TAILOR.format(diy_max=f"{diy_max:.0%}")
     posting = (f"Company: {job.get('company')}\nTitle: {job.get('title')}\nLocation: {job.get('location')}\n\n{(job.get('description') or '')[:12000]}")
-    if score:
-        posting += "\n\n## SCORING NOTES\n" + score.model_dump_json(indent=1)
+    if score:   # jobs.score_json, old (fit_reasons) or new (dims)
+        notes = {k: score[k] for k in ("role_family", "sector", "fit_reasons", "dims", "gaps") if score.get(k)}
+        posting += "\n\n## SCORING NOTES\n" + json.dumps(notes, ensure_ascii=False, indent=1)
     return structured(_system(task), "Build the one-page résumé content for this posting.\n\n" + posting, ResumeContent, effort="high", max_tokens=16000)
 
 

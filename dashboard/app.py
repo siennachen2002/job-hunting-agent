@@ -265,20 +265,36 @@ def approve(app_id: int, d: Decision | None = None):
     if missing():
         return {"ok": False, "msg": "Finish your standing answers first (Storybook → Standing answers)."}
     with db.tx() as con:
-        a = con.execute("SELECT kind, answers_json FROM applications WHERE id=?", (app_id,)).fetchone()
-        if a and (json.loads(a["answers_json"] or "{}").get("needs_human")):
+        a = con.execute("SELECT a.kind, a.status, a.answers_json, j.company, j.title, j.url FROM applications a "
+                        "LEFT JOIN jobs j ON j.id=a.job_id WHERE a.id=?", (app_id,)).fetchone()
+        if not a:
+            raise HTTPException(404)
+        if json.loads(a["answers_json"] or "{}").get("needs_human"):
             return {"ok": False, "msg": "Answer the open questions first."}
+        if a["kind"] == "manual":
+            return {"ok": False, "msg": "The agent has no form or email for this one: apply on the posting yourself" + (f" ({a['url']})." if a["url"] else ".")}
+        if _submitting(app_id):
+            return {"ok": False, "msg": "Its submit window is already open."}
+        twin = con.execute("SELECT a.id, j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id "
+                           "WHERE a.id != ? AND a.status IN ('sent', 'approved') AND lower(j.company)=lower(?)", (app_id, a["company"] or "")).fetchall()
+        twin = next((t["id"] for t in twin if db.role_key(t["company"], t["title"]) == db.role_key(a["company"], a["title"])), None)
+        if twin:
+            return {"ok": False, "msg": f"This role already has application #{twin}, sent or on its way. Reject this copy."}
         from agent import config
-        if config.is_demo():
-            db.update_application(con, app_id, status="approved", approved_at=db.now(), error="demo account: not sent")
+        demo = config.is_demo()
+        # claimed in one step: a second click, or a stale page elsewhere, finds it already approved and starts nothing
+        claimed = con.execute("UPDATE applications SET status='approved', approved_at=?, error=? WHERE id=? AND status IN ('pending_approval', 'failed')",
+                              (db.now(), "demo account: not sent" if demo else None, app_id)).rowcount
+        if not claimed:
+            return {"ok": False, "msg": "Already approved." if a["status"] == "approved" else f"It is {a['status'].replace('_', ' ')}, so there is nothing to approve."}
+        if demo:
             log(con, "review", "approved (demo, not sent)", d.note if d else "", app_id=app_id)
             return {"ok": True, "msg": "Demo account: nothing was sent. In your own account, Approve submits this exact form."}
-        db.update_application(con, app_id, status="approved", approved_at=db.now())
         log(con, "review", "approved", d.note if d else "", app_id=app_id)
     if a and a["kind"] == "ats_web":
         import subprocess, sys
-        subprocess.Popen([sys.executable, "-m", "agent.run", "submit", "--app", str(app_id)], cwd=str(HERE.parent),
-                         stdout=open(HERE.parent / "data" / f"submit-{app_id}.log", "w"), stderr=subprocess.STDOUT)
+        SUBMIT.setdefault(app_id, []).append(subprocess.Popen([sys.executable, "-m", "agent.run", "submit", "--app", str(app_id)], cwd=str(HERE.parent),
+                                                              stdout=open(HERE.parent / "data" / f"submit-{app_id}.log", "w"), stderr=subprocess.STDOUT))
         return {"ok": True, "msg": "Submitting in a browser window. If a CAPTCHA appears, finish it there."}
     from agent.mailbox import configured
     if a and a["kind"] in ("email", "proposal") and configured():
@@ -601,6 +617,7 @@ def playbook_put(name: str, t: Text):
 # ---- simple board: Waiting for review / Not started / Applied ------------------
 import threading as _th
 PREP: dict = {}
+SUBMIT: dict = {}   # app_id -> the submit processes this server started (where there is no pgrep)
 
 
 MIN_MATCH = 50  # your rule: never apply below a 50% match
@@ -633,6 +650,14 @@ def _facts(j):
     return {"salary": salary, "start": m.group(1).strip() if m else None}
 
 
+def _scoring(j):
+    """The dimension scores behind a model score (agent/scoring.py), or None for scores made before dimensions."""
+    sc = json.loads(j.get("score_json") or "{}")
+    if not sc.get("dims"):
+        return None
+    return {k: sc.get(k) for k in ("dims", "score", "guard", "gaps", "hard_blockers", "evidence_failed", "model", "versions", "scored_at", "role_family")}
+
+
 def _title(t):
     t = t or ""
     return t.split("|")[1].strip() if "|" in t else t
@@ -641,13 +666,17 @@ def _title(t):
 @app.get("/api/config")
 def ui_config():
     import os
-    return {"jev": bool(os.getenv("TYPESAFE_API_KEY"))}
+    from agent import scoring
+    return {"jev": bool(os.getenv("TYPESAFE_API_KEY")), "dimensions": [{"key": d["key"], "name": d["name"]} for d in scoring.dimensions()]}
 
 
 def _submitting(app_id: int) -> bool:
     """A submit window for this application is open right now."""
     import subprocess
-    out = subprocess.run(["pgrep", "-f", f"agent.run submit --app {app_id}$"], capture_output=True, text=True).stdout
+    try:
+        out = subprocess.run(["pgrep", "-f", f"agent.run submit --app {app_id}$"], capture_output=True, text=True).stdout
+    except OSError:   # no pgrep (Windows): fall back to the submit processes this server started
+        return any(p.poll() is None for p in SUBMIT.get(app_id, []))
     return bool(out.strip())
 
 
@@ -656,6 +685,7 @@ def board(tab: str = "review"):
     out = []
     with db.tx() as con:
         if tab == "todo":
+            _unstick_drafts(con)
             busy = [k for k in list(PREP) if _prep_state(k) == "running"]
             rows_ = [con.execute("SELECT * FROM jobs WHERE id=?", (k,)).fetchone() for k in busy]
             rows_ += con.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY COALESCE(jev_p*100, score) DESC LIMIT 200").fetchall()
@@ -665,6 +695,8 @@ def board(tab: str = "review"):
             applied = {db.role_key(r["company"], r["title"]) for r in con.execute(
                 "SELECT j.company, j.title FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.status != 'withdrawn'").fetchall()}
             near = re.compile(r"new york|nyc|\bny\b|new jersey|\bnj\b|remote|united states|\bus\b|usa", re.I)
+            verdicts = {r["job_id"]: {"verdict": r["verdict"], "verdict_reason": r["reason"]}
+                        for r in con.execute("SELECT job_id, verdict, reason FROM verdicts").fetchall()}
             for j in rows_:
                 if j is None or j["id"] in seen:
                     continue
@@ -675,7 +707,8 @@ def board(tab: str = "review"):
                 if key in applied and _prep_state(j["id"]) != "running":
                     continue  # this role already has an application, in this city or another
                 card = {**_facts(j), "apply_url": j.get("apply_url"), "job_id": j["id"], "company": j["company"], "title": _title(j["title"]), "url": j["url"], "match": m, "match_src": src, "location": j.get("location") or "",
-                        "why": j.get("score_reason") or "", "preparing": _prep_state(j["id"]), "cities": [j.get("location") or ""]}
+                        "why": j.get("score_reason") or "", "preparing": _prep_state(j["id"]), "cities": [j.get("location") or ""],
+                        **verdicts.get(j["id"], {}), "scoring": _scoring(j)}
                 if card["preparing"] == "running":
                     card["progress"] = _prep_progress(j["id"])
                 prev = roles.get(key)
@@ -705,7 +738,8 @@ def board(tab: str = "review"):
                         "kind": a["kind"], "status": a["status"], "match": m, "match_src": src, "fields": fields,
                         "stage": a.get("stage") or "applied", "stage_at": a.get("stage_at"),
                         "replies": [dict(x) for x in con.execute("SELECT kind, at, sender, subject, snippet, view_url FROM replies WHERE app_id=? ORDER BY at DESC", (a["id"],)).fetchall()] if tab == "applied" else [],
-                        "needs": aj.get("needs_human") or [], "needs_options": aj.get("needs_options") or {}, "has_shot": "screenshot:" in (a.get("sent_log") or ""),
+                        "needs": aj.get("needs_human") or [], "needs_options": {q: (["Yes", "No"] if [_x.lower() for _x in o] in (["on"], ["true"]) else o)
+                                                                          for q, o in (aj.get("needs_options") or {}).items()},   # a lone checkbox is a yes/no question "has_shot": "screenshot:" in (a.get("sent_log") or ""),
                         "email_to": a.get("email_to"), "email_subject": a.get("email_subject"), "email_body": a.get("email_body"),
                         "sent_at": a.get("sent_at") or a.get("approved_at"), "error": a.get("error") or "", "blanks": _blanks(a),
                         "submitting": _submitting(a["id"])})
@@ -742,9 +776,9 @@ def prepare_job(job_id: int):
     m = _match(dict(j[0]))[0] if j else None
     if m is not None and m < MIN_MATCH:
         return {"ok": False, "msg": f"Match {m}% is below {MIN_MATCH}%; jobs under that are not applied to."}
-    proc = PREP.get(job_id)
-    if isinstance(proc, subprocess.Popen) and proc.poll() is None:
+    if _prep_state(job_id) == "running":   # preparing, or waiting its turn in Prepare selected
         return {"ok": True}
+    _good_on_prepare([job_id])
     log = HERE.parent / "data" / f"prepare-{job_id}.log"
     PREP[job_id] = subprocess.Popen([sys.executable, "-m", "agent.run", "compose", str(job_id)], cwd=str(HERE.parent),
                                     stdout=open(log, "w"), stderr=subprocess.STDOUT)
@@ -775,6 +809,7 @@ def prepare_many(body: PrepareMany):
         if not j or (m is not None and m < MIN_MATCH) or _prep_state(jid) == "running":
             skipped.append(jid); continue
         PREP[jid] = _Queued(); ids.append(jid)
+    _good_on_prepare(ids)
 
     def run():
         for jid in ids:
@@ -784,6 +819,20 @@ def prepare_many(body: PrepareMany):
             PREP[jid].wait()
     _th.Thread(target=run, daemon=True).start()
     return {"ok": True, "started": len(ids), "skipped": len(skipped)}
+
+
+def _unstick_drafts(con, older_than_min: int = 60):
+    """A prepare that was killed (not one that failed: that cleans up after itself) leaves a draft no tab shows, and hides
+    its role from Not started. After an hour with no prepare running for it, the job goes back to Not started."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=older_than_min)).isoformat(timespec="seconds")
+    for a in con.execute("SELECT a.id, a.job_id, j.score FROM applications a JOIN jobs j ON j.id=a.job_id "
+                         "WHERE a.status='draft' AND a.created_at < ?", (cutoff,)).fetchall():
+        if _prep_state(a["job_id"]) == "running":
+            continue
+        con.execute("DELETE FROM applications WHERE id=? AND status='draft'", (a["id"],))
+        con.execute("UPDATE jobs SET status=? WHERE id=? AND status='applied_draft'", ("queued" if a["score"] is not None else "new", a["job_id"]))
+    con.commit()
 
 
 def _prep_state(job_id):
@@ -821,6 +870,31 @@ def _prep_error(job_id) -> str:
     return (m[-1].strip()[:200] if m else "it stopped") + "."
 
 
+class Verdict(BaseModel):
+    verdict: str | None = None   # good | nope | None (clear)
+    reason: str | None = None
+
+
+@app.post("/api/jobs/{job_id}/verdict")
+def job_verdict(job_id: int, body: Verdict):
+    """Good or Nope, with the main reason. Nope takes the job off To do; your verdicts are what scoring is measured against."""
+    from agent import scoring
+    with db.tx() as con:
+        try:
+            return scoring.set_verdict(con, job_id, body.verdict, body.reason)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+
+def _good_on_prepare(job_ids):
+    """Preparing an application says Good, unless you already said something."""
+    from agent import scoring
+    with db.tx() as con:
+        for jid in job_ids:
+            if not con.execute("SELECT 1 FROM verdicts WHERE job_id=?", (jid,)).fetchone():
+                scoring.set_verdict(con, jid, "good", "prepared")
+
+
 @app.post("/api/jobs/{job_id}/skip")
 def skip_job(job_id: int):
     from agent.audit import log
@@ -847,7 +921,8 @@ def save_answers(app_id: int, body: Answers):
         for q, ans in new.items():
             if ans.strip() and q in (aj.get("needs_human") or []):
                 aj.setdefault("answers", []).append({"question": q, "answer": ans, "provenance": "you"})
-        answered = {x["question"] for x in aj.get("answers", []) if (x.get("answer") or "").strip()}
+        # only what you answered now leaves "needs you": the agent's own draft to a question it asked you to confirm doesn't
+        answered = {x["q"] for x in body.answers if (x.get("a") or "").strip()}
         from agent import answer_bank
         company = con.execute("SELECT j.company FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=?", (app_id,)).fetchone()[0]
         saved = [q for q in (aj.get("needs_human") or []) if q in answered and answer_bank.remember(q, {x["q"]: x["a"] for x in body.answers}.get(q, ""), company)]

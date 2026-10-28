@@ -30,8 +30,9 @@ INTAKE = ("Turn the raw material into storybook entries. Every line must be trac
 
 # 02 · postings → a ranked queue
 RANK = ("Judge whether {first_name} is a credible candidate for this posting, as a strict recruiter in that field would. "
-        "Map it to one role family below; respect that family's seniority guard (cap at 50, action 'maybe'). "
-        "Work authorisation is settled, so it is never a blocker. Role families: {roles}")
+        "Map it to one role family below and say whether that family's seniority guard applies. Score every dimension below "
+        "by its rubric, each with one sentence and words copied exactly from the posting as evidence; 0 when the posting says "
+        "nothing about it. Work authorisation is settled, so it is never a blocker.\n\nDimensions:\n{dimensions}\n\nRole families: {roles}")
 
 # 03 · a posting → the résumé and the answers
 TAILOR = ("Build the one-page résumé for this posting through its lens in 06-roles.md, following the brief's résumé shape. "

@@ -25,6 +25,28 @@ targets:
   avoid_companies: []
   avoid_keywords: []     # e.g. ["defense", "gambling", "crypto"]
 
+scoring:
+  # What the model scores every posting on: 1-5 per dimension, with a reason and words quoted from the posting.
+  # Code checks each quote against the posting and adds the scores up by weight (agent/scoring.py); the model never
+  # gives a total. Weights add up to 100. A dimension the posting says nothing about is unknown and counts as 3.
+  dimensions:
+    - key: role
+      name: Role fit
+      weight: 35
+      rubric: "5: the daily work is one of the role families at its core. 3: half design, research or strategy work, half something else. 1: not design, research or strategy work at all."
+    - key: level
+      name: Level
+      weight: 25
+      rubric: "5: entry or mid level, 0-3 years asked, or a portfolio counts more than years. 3: 3-5 years, or senior in a small team. 1: staff, principal, director, 6+ years, or managing people."
+    - key: background
+      name: Background match
+      weight: 25
+      rubric: "5: the core requirements (tools, methods, domain) all appear in the storybook. 3: about half of them. 1: core requirements the storybook lacks (a degree, a license, a tech stack)."
+    - key: sector
+      name: Sector
+      weight: 15
+      rubric: "5: AI-native product, climate, or a design or innovation agency. 4: a creative studio. 3: other tech. 1: a sector in avoid_keywords."
+
 automation:
   jev_min: 0.35          # Jev P(apply) below this = skipped before any Claude call
   daily_score_limit: 60   # Claude scoring calls per daily run (ordered by Jev, else keyword relevance)

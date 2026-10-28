@@ -60,6 +60,34 @@ def _clean_answers(aj: dict) -> list[str]:
     return notes
 
 
+MINE = ("status", "answers_json", "resume_json", "resume_pdf", "fill_version", "email_body")
+
+
+def _fresh(con, a: dict) -> bool:
+    """Re-read what you can change on an application (it may be minutes since the list was read): False when it is no
+    longer waiting for review, so the self-check leaves it alone."""
+    r = con.execute(f"SELECT {', '.join(MINE)} FROM applications WHERE id=?", (a["id"],)).fetchone()
+    if not r or r["status"] not in ("pending_approval", "failed"):
+        return False
+    a.update(dict(r))
+    return True
+
+
+def _unchanged(con, a: dict) -> bool:
+    """Nobody changed it while the self-check worked on it (you answered, revised, approved or sent it meanwhile)."""
+    r = con.execute(f"SELECT {', '.join(MINE)} FROM applications WHERE id=?", (a["id"],)).fetchone()
+    return bool(r) and all(r[k] == a.get(k) for k in MINE)
+
+
+def _write(con, a: dict, **fields) -> bool:
+    """Write the self-check's change only if the application is as it read it; keep its own copy current."""
+    if not _unchanged(con, a):
+        return False
+    db.update_application(con, a["id"], **fields); con.commit()
+    a.update(fields)
+    return True
+
+
 def run(con, refill: bool = True) -> dict:
     from .apply.fill import fill
     from .resume.render import render_one_page
@@ -70,9 +98,9 @@ def run(con, refill: bool = True) -> dict:
     apps = [dict(r) for r in con.execute(
         "SELECT a.*, j.company, j.title, j.apply_url, j.source, j.sector, j.score_json FROM applications a JOIN jobs j ON j.id=a.job_id "
         "WHERE a.status IN ('pending_approval','failed') ORDER BY a.id").fetchall()]
-    # duplicate roles: the earliest application keeps the role
+    # duplicate roles: the one with your own answers keeps the role, else the earliest
     seen = {}
-    for a in apps:
+    for a in sorted(apps, key=lambda a: ('"provenance": "you"' not in (a.get("answers_json") or ""), a["id"])):
         k = db.role_key(a["company"], a["title"])
         if k in seen:
             db.update_application(con, a["id"], status="withdrawn", error=f"same role as application #{seen[k]}")
@@ -81,7 +109,7 @@ def run(con, refill: bool = True) -> dict:
             seen[k] = a["id"]
     con.commit()
     for a in apps:
-        if a.get("_gone"):
+        if a.get("_gone") or not _fresh(con, a):
             continue
         rep["checked"] += 1
         tag = f"#{a['id']} {a['company']} · {a['title']}"
@@ -98,9 +126,10 @@ def run(con, refill: bool = True) -> dict:
                     empty = [l.split(": ", 1)[1] for l in r.get("log", []) if l.startswith("UNFILLED required: ")]
                     answered = {x["question"] for x in aj["answers"]}
                     aj["needs_human"] = list(dict.fromkeys((aj.get("needs_human") or []) + [e for e in empty if e not in answered]))
-                    db.update_application(con, a["id"], answers_json=json.dumps(aj, ensure_ascii=False), fill_version=version,
-                                          sent_log="\n".join(r.get("log", [])) + f"\nscreenshot: {shot}",
-                                          **({"status": "pending_approval", "error": None} if failed else {}))
+                    if not _write(con, a, answers_json=json.dumps(aj, ensure_ascii=False), fill_version=version,
+                                  sent_log="\n".join(r.get("log", [])) + f"\nscreenshot: {shot}",
+                                  **({"status": "pending_approval", "error": None} if failed else {})):
+                        rep["fixed"].append(f"{tag}: left alone, you changed it while its form was being refilled"); continue
                     why = "submit had failed" if failed else "form-filling rules changed" if stale else "answers updated"
                     rep["fixed"].append(f"{tag}: form refilled ({why})" + (f", {len(empty)} field(s) for you" if empty else "") +
                                         ("; " + "; ".join(notes) if notes else ""))
@@ -118,10 +147,10 @@ def run(con, refill: bool = True) -> dict:
                     rep["fixed"].append(f"{tag}: cover letter repaired ({hard[0].what[:50]})")
                 except Exception:
                     pass
-        if changed:
-            db.update_application(con, a["id"], answers_json=json.dumps(aj, ensure_ascii=False))
+        if changed and not _write(con, a, answers_json=json.dumps(aj, ensure_ascii=False)):
+            continue
         # résumé on today's template
-        if a.get("resume_json"):
+        if a.get("resume_json") and _unchanged(con, a):   # re-rendered at the same path: never over a résumé you just revised
             c = json.loads(a["resume_json"]); before = json.dumps(c, sort_keys=True)
             if any(i.level == "hard" and "two lines" in i.what for i in lint_resume(c)):
                 llm.shorten_long(c)
@@ -131,8 +160,7 @@ def run(con, refill: bool = True) -> dict:
             sc = json.loads(a.get("score_json") or "{}")
             pdf, r2, _ = render_one_page(c, Path(a["resume_pdf"]).stem, role_family=sc.get("role_family"),
                                          sector=a.get("sector") or sc.get("sector"), posting_title=a.get("title"))
-            if json.dumps(r2, sort_keys=True) != before:
-                db.update_application(con, a["id"], resume_pdf=str(pdf), resume_json=json.dumps(r2, ensure_ascii=False))
+            if json.dumps(r2, sort_keys=True) != before and _write(con, a, resume_pdf=str(pdf), resume_json=json.dumps(r2, ensure_ascii=False)):
                 rep["fixed"].append(f"{tag}: résumé brought up to date")
         # blanks
         if re.search(r"\[YOUR ANSWER", json.dumps(aj) + (a.get("email_body") or ""), re.I):

@@ -20,6 +20,35 @@
         "dashboard.app"
       ],
       "port": 8777
+    },
+    {
+      "name": "week7-job-agent",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "--directory",
+        "week7-job-agent",
+        "jobagent",
+        "serve",
+        "--port",
+        "8771",
+        "--no-open"
+      ],
+      "port": 8771
+    },
+    {
+      "name": "deck",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8791",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "deck"
+      ],
+      "port": 8791
     }
   ]
 }

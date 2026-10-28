@@ -13,6 +13,7 @@ from . import config, db
 NEVER = re.compile(r"\bwhy\b|interest|excit|motivat|cover letter|tell us|describe|a time when|project|salary|compensation|\bpay\b|"
                    r"arbitrat|attest|certif|acknowledg|\bagree|confirm|policy|export control|read the|signature|essay|words\)|"
                    r"additional information|anything else|radio #|field label", re.I)
+BLANK = ("on", "true", "off", "false")   # a checkbox's raw value, not an answer: never saved or reused
 TOPICS = {   # same topic = same question, however it is worded
     "start": r"\b(earliest|when)\b.*\bstart|start date|available to start|availability to start",
     "timeline": r"deadline|timeline consideration|other offers|competing offer",
@@ -68,10 +69,18 @@ def _scope(q: str, company: str) -> str | None:
     return company if name and len(name) > 2 and name in q.lower() else "any"
 
 
+def _place(q: str) -> str:
+    """'Are you currently located in the United States?' → 'united states': where a 'located' question asks about."""
+    m = re.search(r"\b(?:based|located|live|reside) in (?:the )?([a-z .,/-]+)", q.lower())
+    return " ".join(re.findall(r"[a-z]+", m.group(1))[:3]) if m else ""
+
+
 def _same(a: dict, q: str, company: str) -> bool:
     if a.get("scope") not in ("any", company):
         return False
     t = _topic(q)
+    if t == "located" and a.get("topic") == "located":   # "located in the US" says nothing about "located in the UK"
+        return _place(q) == _place(a["question"])
     if t or a.get("topic"):
         return t == a.get("topic")
     wa, wq = _words(a["question"]), _words(q)
@@ -82,14 +91,15 @@ def lookup(question: str, company: str) -> str | None:
     q = _core(question)
     if _scope(q, company) is None:
         return None
-    return next((a["answer"] for a in load() if _same(a, q, company)), None)
+    return next((a["answer"] for a in load() if _same(a, q, company)
+                 and str(a["answer"]).strip().lower() not in BLANK), None)
 
 
 def remember(question: str, answer: str, company: str) -> bool:
     """Keep a reusable answer (replacing an older one to the same question). Returns whether it was kept."""
     q = _core(question); answer = (answer or "").strip()
     scope = _scope(q, company)
-    if scope is None or not answer:
+    if scope is None or not answer or answer.lower() in BLANK:
         return False
     items = [a for a in load() if not _same(a, q, company)]
     items.append({"question": q, "answer": answer, "topic": _topic(q), "scope": scope, "from": company, "saved": db.now()[:10]})

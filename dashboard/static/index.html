@@ -178,6 +178,23 @@
   .kv .k { color:var(--mute); padding-right:18px; } .kv .v { color:var(--ink); white-space:pre-wrap; }
   .kv .v input, .kv .v textarea { margin:-4px 0; }
   .why-box { font-size:14px; color:var(--ink2); line-height:1.6; }
+  .verdict { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:18px; }
+  .verdict .lbl { font-size:13px; color:var(--mute); margin-right:2px; }
+  .btn.vg.on { background:color-mix(in srgb, var(--green) 10%, var(--surface)); border-color:var(--green); color:var(--green); }
+  .btn.vn.on { background:var(--red-soft); border-color:var(--red); color:var(--red); }
+  .vr { display:flex; gap:6px; flex-wrap:wrap; align-items:center; width:100%; margin-top:4px; font-size:13px; color:var(--mute); }
+  .vr button { all:unset; cursor:pointer; font-size:12.5px; padding:3px 10px; border:1px solid var(--line); border-radius:999px; color:var(--ink2); }
+  .vr button:hover { background:var(--hover); } .vr button.on { border-color:var(--ink2); color:var(--ink); font-weight:600; }
+  .dims { display:flex; flex-direction:column; gap:16px; }
+  .dim .dh { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); }
+  .dim .dh small { font-weight:400; color:var(--faint); font-family:var(--mono); font-size:11.5px; }
+  .pips { display:inline-flex; gap:3px; margin-left:auto; } .pips i { width:14px; height:6px; border-radius:2px; background:var(--sunk); } .pips i.on { background:var(--ink2); }
+  .dim .unk { margin-left:auto; font-size:12px; font-weight:400; color:var(--faint); }
+  .dim p { margin:4px 0 0; font-size:13.5px; color:var(--ink2); line-height:1.5; }
+  .dim q { display:block; margin-top:6px; padding-left:10px; border-left:2px solid var(--line); font-size:13px; line-height:1.5; color:var(--mute); quotes:none; }
+  .dim .bad, .snote { margin-top:6px; font-size:12.5px; color:var(--orange); }
+  .smeta { margin-top:14px; font-size:11.5px; color:var(--faint); font-family:var(--mono); line-height:1.6; }
+  .vt { color:var(--green); font-weight:600; }
   .jd { white-space:pre-wrap; font-size:14px; line-height:1.65; color:var(--ink2); }
   .d-foot { display:flex; align-items:center; gap:8px; padding:14px 34px; border-top:1px solid var(--line); background:var(--surface); }
   .hint { font-size:13px; color:var(--mute); margin-left:6px; }
@@ -470,7 +487,9 @@ async function refreshJobs() {
     else render();
   }, 3000);
 }
-async function decide(id, what) { const r = await post(`/api/applications/${id}/${what}`); if (r && r.msg) toast(r.msg); sel[sub] = null; render(); }
+async function decide(id, what, b) {   // the button stays off while it runs: one click, one submit
+  if (b) { if (b.disabled) return; b.disabled = true; }
+  const r = await post(`/api/applications/${id}/${what}`); if (r && r.msg) toast(r.msg); sel[sub] = null; render(); }
 function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 5000); }
 async function reject(id) { const why = prompt('Why not? (optional; the agent learns from it)'); if (why === null) return; await post(`/api/applications/${id}/reject`, {note: why}); sel[sub] = null; render(); }
 async function saveAnswers(id, isEmail, b) {
@@ -518,7 +537,7 @@ function queueItem(c) {
   const st = sub === 'review' ? (needs || blanks ? `<div class="st o"><span class="dot"></span>${[needs && `${needs} ${needs === 1 ? 'question' : 'questions'} for you`, blanks && `${blanks} ${blanks === 1 ? 'blank' : 'blanks'} to fill`].filter(Boolean).join(' · ')}</div>` : `<div class="st r"><span class="dot"></span>Ready to approve</div>`)
     : sub === 'applied' ? appliedLine(c)
     : c.preparing === 'running' ? `<div class="prep" data-job="${c.job_id}"><div class="pl">${esc((c.progress || {}).label || 'Preparing')}…</div><div class="pb"><i style="width:${(c.progress || {}).pct || 4}%"></i></div></div>`
-    : (c.preparing || '').startsWith('error') ? `<div class="st" style="display:block;color:var(--red)">Couldn't prepare: ${esc(c.preparing.slice(7))}</div>` : (c.location ? `<div class="st" style="display:block">${esc(c.location)}</div>` : '');
+    : (c.preparing || '').startsWith('error') ? `<div class="st" style="display:block;color:var(--red)">Couldn't prepare: ${esc(c.preparing.slice(7))}</div>` : (c.location || c.verdict === 'good' ? `<div class="st" style="display:block">${c.verdict === 'good' ? '<span class="vt">Good</span> · ' : ''}${esc(c.location)}</div>` : '');
   const item = `<button class="qi ${keyOf(c) === sel[sub] ? 'on' : ''}" onclick="pickJob(${keyOf(c)})">${mono(c.company)}<div class="t"><div class="c">${esc(c.company)}</div><div class="ti">${esc(c.title)}</div>${st}</div>${ring(c, true)}</button>`;
   if (sub !== 'todo') return item;
   const busy = c.preparing === 'running';
@@ -583,7 +602,7 @@ function submissionBox(c) {
   const x = submission(c), mails = (c.replies || []).filter(r => r.kind === 'confirmation').sort((a, b) => (a.at || '').localeCompare(b.at || ''));
   return `<div class="section"><div class="sh"><h4>Submission</h4></div>
     <div class="subbox ${x.k}">${subChip(c)}<span>${esc(x.note)}${c.sent_at && x.k.startsWith('ok') ? ' · ' + day(c.sent_at) : ''}</span>
-      ${x.k === 'failed' ? `<button class="btn sm primary" style="margin-left:auto" onclick="decide(${c.app_id},'approve')">Try again</button>` : ''}</div>
+      ${x.k === 'failed' ? `<button class="btn sm primary" style="margin-left:auto" onclick="decide(${c.app_id},'approve',this)">Try again</button>` : ''}</div>
     ${mails.map(r => `<div class="reply mailcard"><div class="rh">${I.check}<b>${esc(r.subject)}</b><span class="rs">${esc((r.sender || '').replace(/<.*>/, ''))} · ${day(r.at)}</span>
       ${r.view_url ? `<a class="lk" href="${esc(r.view_url)}" target="_blank">Open in Gmail${I.ext}</a>` : ''}</div><p>${esc((r.snippet || '').replace(/\[https?:[^\]]+\]/g, '').trim().slice(0, 500))}</p></div>`).join('')}
     ${x.k === 'ok-noemail' ? '<p class="hint" style="margin:8px 0 0">The inbox is checked once a day; the confirmation email shows here when it arrives.</p>' : ''}</div>`;
@@ -619,14 +638,46 @@ function detailApp(c, done) {
         ${done ? '' : ed ? `<span style="display:flex;gap:6px"><button class="btn sm quiet" onclick="editing=false;render()">Cancel</button><button class="btn sm primary" onclick="saveAnswers(${c.app_id}, ${!!c.email_body}, this)">Save</button></span>` : `<button class="btn sm quiet" onclick="editing=true;render()">${I.pen}Edit</button>`}</div>${filled}</div>
     </div>
     <div class="d-foot">${done ? `<span class="stamp">${I.check}${c.status === 'sent' ? 'Sent' : 'Approved'} ${day(c.sent_at)}</span>` : `
-      <button class="btn primary" ${needs.length || (c.blanks || []).length ? 'disabled' : ''} onclick="decide(${c.app_id},'approve')">${I.check}Approve</button>
+      <button class="btn primary" ${needs.length || (c.blanks || []).length ? 'disabled' : ''} onclick="decide(${c.app_id},'approve',this)">${I.check}Approve</button>
       <button class="btn danger" onclick="reject(${c.app_id})">Reject</button>
-      <span class="hint">${(c.blanks || []).length ? `Fill in the [YOUR ANSWER] blank in ${c.blanks.join(', ')} to approve (Edit).` : needs.length ? `Answer the ${needs.length === 1 ? 'question' : needs.length + ' questions'} above to approve.` : ACCTS && ACCTS.demo ? 'Demo account: approving sends nothing. In your own account, it submits this exact form.' : (c.email_body ? 'Approving queues the email; it goes out with the next send.' : 'Approving submits it in a browser window. Nothing goes out before.')}</span>`}</div>`;
+      <span class="hint">${(c.blanks || []).length ? `Fill in the [YOUR ANSWER] blank in ${c.blanks.join(', ')} to approve (Edit).` : needs.length ? `Answer the ${needs.length === 1 ? 'question' : needs.length + ' questions'} above to approve.` : ACCTS && ACCTS.demo ? 'Demo account: approving sends nothing. In your own account, it submits this exact form.' : c.kind === 'manual' ? 'The agent has no form or email for this one: apply on the posting yourself.' : (c.email_body ? 'Approving queues the email; it goes out with the next send.' : 'Approving submits it in a browser window. Nothing goes out before.')}</span>`}</div>`;
+}
+
+// Your verdict on a job: Good or Nope, then the main reason. Scoring is measured against these (agent/scoring.py).
+let DIMS = [], CUR = null;
+function verdictBar(c) {
+  const v = c.verdict, reasons = [...DIMS.map(d => d.name), 'Other'];
+  return `<span class="lbl">Your call</span>
+    <button class="btn sm vg ${v === 'good' ? 'on' : ''}" onclick="setVerdict(${c.job_id}, ${v === 'good' ? 'null' : "'good'"})">${I.check}Good</button>
+    <button class="btn sm vn ${v === 'nope' ? 'on' : ''}" onclick="setVerdict(${c.job_id}, ${v === 'nope' ? 'null' : "'nope'"})">${I.x}Nope</button>
+    ${v ? `<div class="vr">${v === 'good' ? 'Main reason it fits:' : 'Main reason it doesn’t:'} ${reasons.map(r => `<button class="${c.verdict_reason === r ? 'on' : ''}" data-r="${esc(r)}" onclick="setVerdict(${c.job_id}, '${v}', this.dataset.r)">${esc(r)}</button>`).join('')}</div>` : ''}`;
+}
+async function setVerdict(id, v, reason) {
+  await post(`/api/jobs/${id}/verdict`, {verdict: v, reason: reason || null});
+  if (v === 'nope' && reason) { toast('Marked Nope. It is off your To do.'); sel[sub] = null; return render(); }
+  if (CUR && CUR.job_id === id) { CUR.verdict = v; CUR.verdict_reason = reason || null; const el = $('#verdict'); if (el) el.innerHTML = verdictBar(CUR); }
+}
+function scoreDims(s) {
+  if (!s || !s.dims) return '';
+  const v = s.versions || {};
+  const meta = [s.model && `scored by ${s.model}`, s.scored_at && new Date(s.scored_at).toLocaleString(),
+    v.preferences && `preferences ${v.preferences} · storybook ${v.storybook} · prompt ${v.prompt}`].filter(Boolean);
+  return `<div class="section"><div class="sh"><h4>Scores <span class="n">${s.score}</span></h4></div><div class="dims">${s.dims.map(d => `<div class="dim">
+      <div class="dh">${esc(d.name)} <small>${d.weight}%</small>${d.score ? `<span class="pips" title="${d.score} of 5">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= d.score ? 'on' : ''}"></i>`).join('')}</span>` : '<span class="unk">Unknown</span>'}</div>
+      ${d.reason ? `<p>${esc(d.reason)}</p>` : ''}${d.evidence ? `<q>${esc(d.evidence)}</q>` : ''}
+      ${d.note ? `<div class="bad">${esc(d.note[0].toUpperCase() + d.note.slice(1))}, so the model's ${d.claimed} counts as unknown.</div>` : ''}</div>`).join('')}</div>
+    ${s.guard ? `<div class="snote">This role family's seniority guard applies, so the total is capped at 50.</div>` : ''}
+    ${(s.hard_blockers || []).length ? `<div class="snote">Blockers: ${esc(s.hard_blockers.join('; '))}</div>` : ''}
+    ${(s.gaps || []).length ? `<p class="why-box" style="margin:12px 0 0">Gaps: ${esc(s.gaps.join('; '))}</p>` : ''}
+    <div class="smeta">${meta.map(esc).join('<br>')}</div></div>`;
 }
 
 function detailTodo(c) {
+  CUR = c;
   return `<div class="d-scroll">${header(c)}
+      <div class="verdict" id="verdict">${verdictBar(c)}</div>
       ${c.why ? `<div class="section"><div class="sh"><h4>Why it fits</h4></div><div class="why-box">${esc(c.why)}</div></div>` : ''}
+      ${scoreDims(c.scoring)}
       ${c.preparing && c.preparing.startsWith('error') ? `<div class="section"><div class="err">${esc(c.preparing)}</div></div>` : ''}
       <div class="section"><div class="sh"><h4>Job description</h4></div><div class="jd" id="jd">Loading…</div></div>
     </div>
@@ -636,6 +687,7 @@ function detailTodo(c) {
 
 async function renderJobs(p) {
   const [rv, td, ap, cfg] = await Promise.all([...['review', 'todo', 'applied'].map(t => api('/api/board?tab=' + t)), api('/api/config')]);
+  DIMS = cfg.dimensions || [];
   $('#c-jobs').textContent = rv.length || '';
   const lists = {review: rv, todo: td, applied: ap};
   const names = {review: 'Waiting for review', todo: 'Not started', applied: 'Applied'}, short = {review: 'Review', todo: 'To do', applied: 'Applied'};

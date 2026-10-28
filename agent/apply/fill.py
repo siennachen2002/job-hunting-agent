@@ -190,11 +190,13 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                         except Exception as e:
                             log.append(f"could not tick {f['label'][:40]}: {e.__class__.__name__}")
                 continue
-            val = identity_answer(f["label"])          # legal name first; preferred name only in its own field
+            # legal name first (preferred name only in its own field); then the answer drafted or given for this
+            # application, as radios and yes/no buttons do; the standing rules fill what that leaves
+            val, mine = identity_answer(f["label"]), False
+            if val is None:
+                val = _lookup(answers, lab); mine = val is not None
             if val is None:
                 val = standing_answer(f["label"], f.get("options"))
-            if val is None:
-                val = _lookup(answers, lab)
             if val is None:
                 if f["required"]: log.append(f"UNFILLED required: {f['label']}")
                 continue
@@ -216,7 +218,7 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                             names = read()
                             if not names:
                                 loc.click(timeout=3000); pg.wait_for_timeout(600); names = read()
-                            again = standing_answer(f["label"], names) if names else None   # the standing rules, with the form's real options
+                            again = None if mine or not names else standing_answer(f["label"], names)   # the standing rules, with the form's real options
                             pick = again if again in names else best_option(val, names)
                             if not pick and names and again:
                                 pick = best_option(again, names)
@@ -245,11 +247,14 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                     log.append(f"could not fill {f['label'][:40]}: {e.__class__.__name__}: {str(e).splitlines()[0][:160]}")
             elif f["tag"] == "select":
                 pick = next((o for o in f.get("options") or [] if _norm(o) == _norm(val)), None) or next((o for o in f.get("options") or [] if _norm(val) and _norm(val) in _norm(o)), None)
+                pick = pick or best_option(val, [o for o in f.get("options") or [] if o])
                 if pick:
                     try:
                         pg.select_option(sel, label=pick, timeout=5000); log.append(f"selected {pick[:40]} → {f['label'][:40]}")
                     except Exception as e:
                         log.append(f"could not select {f['label'][:40]}: {e.__class__.__name__}")
+                else:   # said, not skipped: a required one becomes a question for the person
+                    log.append(f"UNFILLED (no matching option for '{val[:30]}'): {f['label']}" if f["required"] else f"left empty, no fitting option for '{val[:30]}': {f['label']}")
         for g in radios.values():   # a required choice left empty: never submitted that way, asked of the person instead
             if g["required"] and not g["ticked"]:
                 log.append(f"UNFILLED required: {g['label']}")
@@ -361,14 +366,18 @@ def fill(url: str, answers: dict[str, str], resume_pdf: str | None, shot_path: s
                 except Exception:
                     still_form = False
                 result["submitted"] = bool(confirmed) and not still_form
+                # the form itself still refuses it (a field, a code, a CAPTCHA) with Submit on screen: it was not received
+                result["blocked"] = bool(result.get("needs_person")) and still_form
                 pg.screenshot(path=shot_path.replace(".png", "-after.png"), full_page=True)
             except Exception as e:   # the window closed (you closed it, or the site moved on): after Submit it counts as sent
-                if "closed" not in str(e).lower():
-                    raise
-                result["closed"] = True
+                if "closed" not in str(e).lower() and not result.get("clicked"):
+                    raise   # before Submit: nothing was sent, the caller sends it back to review
+                if "closed" not in str(e).lower():   # after Submit any error (the page moving on mid-check) is the same: never press it twice
+                    log.append(f"after Submit: {e.__class__.__name__}: {str(e).splitlines()[0][:160]}")
+                result["closed"] = "closed" in str(e).lower()
                 result["submitted"] = bool(result.get("clicked"))
                 if result["submitted"]:
-                    log.append("window closed after Submit was clicked: counted as sent; the confirmation email confirms it")
+                    log.append(("window closed after " if result["closed"] else "") + "Submit was clicked: counted as sent; the confirmation email confirms it")
                 try:
                     close()
                 except Exception:

@@ -28,6 +28,16 @@ def discover(con) -> dict:
         new = sum(db.upsert_job(con, j)[1] for j in jobs)
         con.commit()   # one company at a time, so nothing else waits on the whole refresh
         counts[entry["name"]] = (len(jobs), new)
+    from .sources import boards
+    for b in config.boards():   # Built In, YC: each role kept in its company's ATS version when there is one
+        name = b.get("site") or f"{b['board']} {b.get('role', '')}".strip()
+        try:
+            jobs = boards.fetch(con, b)
+        except Exception as e:
+            print(f"  ! {name}: {e}", file=sys.stderr)
+            continue
+        counts[name] = (len(jobs), sum(db.upsert_job(con, j)[1] for j in jobs))
+        con.commit()
     try:
         kws = [k for fam in config.roles().get("families", []) for k in fam.get("keywords", [])]
         hn = hn_hiring.fetch(keywords=kws or None)
@@ -87,50 +97,62 @@ def jev_pass(con, limit: int = 5000) -> tuple[int, int]:
         print("  (no TYPESAFE_API_KEY: skipping the Jev pass, Claude scores everything)")
         return 0, 0
     jev_min = config.preferences().get("automation", {}).get("jev_min", 0.35)
-    rows = [dict(r) for r in con.execute("SELECT * FROM jobs WHERE status='new' AND jev_p IS NULL LIMIT ?", (limit,)).fetchall()]
-    ps = jev.score_batch(rows)
-    dropped = 0
-    for j, pr in zip(rows, ps):
-        if pr is None:
-            continue
-        con.execute("UPDATE jobs SET jev_p=? WHERE id=?", (pr, j["id"]))
-        if pr < jev_min:
-            con.execute("UPDATE jobs SET status='skipped', score_reason=? WHERE id=?", (f"jev {pr:.2f} < {jev_min}", j["id"]))
-            dropped += 1
-    con.commit()
-    return len(rows), dropped
+    rows = [dict(r) for r in con.execute("SELECT * FROM jobs WHERE status='new' AND jev_p IS NULL "
+                                         "ORDER BY COALESCE(kw_score, 0) DESC, discovered_at DESC LIMIT ?", (limit,)).fetchall()]
+    seen = dropped = 0
+    for i in range(0, len(rows), jev.BATCH):   # saved request by request: a failed request keeps what came before it
+        chunk = rows[i:i + jev.BATCH]
+        try:
+            ps = jev.score_batch(chunk)
+        except Exception as e:
+            print(f"  jev stopped after {seen} postings: {str(e)[:120]}")
+            break
+        for j, pr in zip(chunk, ps):
+            if pr is None:
+                continue
+            con.execute("UPDATE jobs SET jev_p=? WHERE id=?", (pr, j["id"]))
+            if pr < jev_min:
+                con.execute("UPDATE jobs SET status='skipped', score_reason=? WHERE id=?", (f"jev {pr:.2f} < {jev_min}", j["id"]))
+                dropped += 1
+        con.commit()
+        seen += len(chunk)
+    return seen, dropped
 
 
 def score(con, limit: int = 200) -> int:
-    """Model scores for unscored postings. Without Jev, Claude Code (your login, never an API key) scores them, 8 per call."""
-    from . import llm, jev
-    prefs = config.preferences().get("automation", {})
-    q_min = prefs.get("min_score_to_queue", 55)
+    """Model scores for unscored postings. Without Jev, Claude Code (your login, never an API key) scores them, 8 per call.
+    The model scores each dimension with a quote; agent/scoring.py checks the quotes and computes the total."""
+    from . import llm, jev, scoring, providers
     n = 0
     rows = [dict(r) for r in con.execute("SELECT * FROM jobs WHERE status='new' ORDER BY COALESCE(jev_p, kw_score, 0) DESC, discovered_at DESC LIMIT ?", (limit,)).fetchall()]
-    cc = {}
+    cc, model = {}, {}
     if not jev.available():
         for i in range(0, len(rows), 8):
             try:
-                cc.update(llm.score_jobs_claude_code(rows[i:i + 8]))
+                got = llm.score_jobs_claude_code(rows[i:i + 8])
+                cc.update(got); model.update(dict.fromkeys(got, providers.LAST["model"]))
             except Exception as e:   # a batch that came back malformed: those postings one by one, still Claude Code
                 print(f"  claude code batch failed ({str(e)[:80]}); scoring its postings one by one")
                 for r in rows[i:i + 8]:
                     try:
-                        cc[r["id"]] = llm.score_job(r, tier="claude-code")
+                        cc[r["id"]] = llm.score_job(r, tier="claude-code"); model[r["id"]] = providers.LAST["model"]
                     except Exception as e2:
                         print(f"  could not score {r['company']} - {r['title']}: {str(e2)[:80]}")
         rows = [r for r in rows if r["id"] in cc]
+    v = scoring.versions(con)   # the same for every posting in this pass
+    from .audit import log
     for job in rows:
-        s = cc.get(job["id"]) or llm.score_job(job)
-        status = "queued" if (s.score >= q_min and s.action != "skip" and not s.hard_blockers) else "skipped"
-        db.set_score(con, job["id"], s.score, s.one_line, s.model_dump(), status)
-        from .audit import log
-        log(con, "rank", status, f"{s.score} {s.role_family}: {s.one_line}", job_id=job["id"])
+        s = cc.get(job["id"])
+        if s is None:
+            s = llm.score_job(job); model[job["id"]] = providers.LAST["model"]
+        total, status, payload = scoring.finalize(con, job, s.model_dump(), model.get(job["id"], ""), v)
+        db.set_score(con, job["id"], total, s.one_line, payload, status)
+        failed = payload["evidence_failed"]
+        log(con, "rank", status, f"{total} {s.role_family}: {s.one_line}" + (f" (quote not found: {', '.join(failed)})" if failed else ""), job_id=job["id"])
         con.execute("UPDATE jobs SET sector=COALESCE(sector, ?) WHERE id=?", (s.sector, job["id"]))
         con.commit()
         n += 1
-        print(f"  {s.score:3d} {status:8s} {job['company']} - {job['title']}")
+        print(f"  {total:3d} {status:8s} {job['company']} - {job['title']}" + (f"  [quote not found: {', '.join(failed)}]" if failed else ""))
     return n
 
 
@@ -165,13 +187,13 @@ def revise(con, app_id: int, instruction: str) -> str:
     from .resume.render import render_one_page
     a = dict(con.execute("SELECT * FROM applications WHERE id=?", (app_id,)).fetchone())
     job = dict(con.execute("SELECT * FROM jobs WHERE id=?", (a["job_id"],)).fetchone())
-    sc = llm.JobScore(**json.loads(job["score_json"])) if job.get("score_json") else None
+    sc = json.loads(job["score_json"]) if job.get("score_json") else {}
     content = llm.revise_resume(job, json.loads(a["resume_json"] or "{}"), instruction)
     notes = llm.clean_resume(content)
     from .voicecheck import lint_resume
     notes += [f"[page] {i.what}" for i in lint_resume(content.model_dump())]
     pdf, rendered, scale = render_one_page(content.model_dump(), Path(a["resume_pdf"]).stem,
-                                           role_family=sc.role_family if sc else None, sector=job.get("sector") or (sc.sector if sc else None),
+                                           role_family=sc.get("role_family"), sector=job.get("sector") or sc.get("sector"),
                                            posting_title=job.get("title"))
     db.update_application(con, app_id, resume_pdf=str(pdf), resume_json=json.dumps(rendered, ensure_ascii=False),
                           diy_notes=(a.get("diy_notes") or "") + f"\n-- revised: {instruction}\n" + "\n".join(content.tailoring_notes + notes))
@@ -188,25 +210,25 @@ def tailor(con, job_id: int) -> int:
     if not row:
         raise SystemExit(f"no job {job_id}")
     job = dict(row)
-    sc = llm.JobScore(**json.loads(job["score_json"])) if job.get("score_json") else None
-    content = llm.tailor_resume(job, sc)
+    sc = json.loads(job["score_json"]) if job.get("score_json") else {}
+    content = llm.tailor_resume(job, sc or None)
     voice_notes = llm.clean_resume(content)
     from .voicecheck import lint_resume
     voice_notes += [f"[page] {i.what}" for i in lint_resume(content.model_dump())]
     pdf, rendered, scale = render_one_page(content.model_dump(), f"{config.file_stem()}_{job['company']}_{job_id}",
-                                           role_family=sc.role_family if sc else None, sector=job.get("sector") or (sc.sector if sc else None),
+                                           role_family=sc.get("role_family"), sector=job.get("sector") or sc.get("sector"),
                                            posting_title=job.get("title"))
     prefs = config.preferences().get("automation", {})
     kind = "ats_web" if job["source"] in ("greenhouse", "lever", "ashby") else "manual"
     needs_approval = kind not in prefs.get("auto_approve_kinds", []) or content.diy_ratio > prefs.get("diy_max", 0.15)
     app_id = db.create_application(
-        con, job_id=job_id, kind=kind, status="pending_approval", needs_approval=int(needs_approval),
+        con, job_id=job_id, kind=kind, status="draft", needs_approval=int(needs_approval),   # prepare() fills the form, then it waits for review
         resume_pdf=str(pdf), resume_json=json.dumps(rendered, ensure_ascii=False),
         diy_ratio=content.diy_ratio, diy_notes="\n".join(content.diy_notes + ["--"] + content.tailoring_notes + (["-- voice check"] + voice_notes if voice_notes else [])),
     )
     con.execute("UPDATE jobs SET status='applied_draft' WHERE id=?", (job_id,))
     from .audit import log
-    log(con, "compose", "resume", f"lens {sc.role_family if sc else '?'}, diy {content.diy_ratio:.0%}", job_id=job_id, app_id=app_id)
+    log(con, "compose", "resume", f"lens {sc.get('role_family') or '?'}, diy {content.diy_ratio:.0%}", job_id=job_id, app_id=app_id)
     con.commit()
     print(f"  application {app_id}: {pdf} (scale {scale}, diy {content.diy_ratio:.0%}, approval {'needed' if needs_approval else 'auto'})")
     return app_id
@@ -242,8 +264,9 @@ def submit_approved(con, headed: bool = True, app_id: int | None = None) -> None
             db.update_application(con, a["id"], status="pending_approval", answers_json=json.dumps(aj, ensure_ascii=False),
                                   error="not submitted: " + "; ".join(x[:60] for x in r["unfilled"][:3]))
             con.commit(); print(f"  app {a['id']} {j['company']}: back to review, {len(r['unfilled'])} required field(s) empty"); continue
-        # once Submit was pressed it counts as sent (the confirmation email confirms it); never pressed: back to review
-        status = "sent" if r.get("submitted") or r.get("clicked") else "pending_approval"
+        # once Submit was pressed it counts as sent (the confirmation email confirms it), unless the form still refuses it
+        # on screen (a field, a code, a CAPTCHA); never pressed: back to review
+        status = "sent" if r.get("submitted") or (r.get("clicked") and not r.get("blocked")) else "pending_approval"
         note = r.get("needs_person") or r.get("error")
         db.update_application(con, a["id"], status=status, sent_at=db.now() if status == "sent" else None,
                               sent_log=(a["sent_log"] or "") + "\n--- submit ---\n" + "\n".join(r.get("log", []))
@@ -300,7 +323,8 @@ def prepare(con, limit: int = 10, app_id: int | None = None) -> list[str]:
                 m = re.match(r"UNFILLED (?:required|\(no matching option[^)]*\)): (.+)", line)
                 if m and m.group(1).strip() not in dump["needs_human"]:
                     dump["needs_human"].append(m.group(1).strip())
-            opts = {q["label"]: q["options"] for q in qs if q.get("options")}
+            opts = {q["label"]: (["Yes", "No"] if [o.strip().lower() for o in q["options"]] in (["on"], ["true"]) else q["options"])
+                    for q in qs if q.get("options")}   # a lone checkbox whose value is "on" is a yes/no question
             dump["needs_options"] = {n: opts[n] for n in fa.needs_human if n in opts}   # shown as a dropdown in "Questions for you"
             from .doctor import fill_version, _init as _doc_init
             _doc_init(con)

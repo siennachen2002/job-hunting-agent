@@ -56,6 +56,11 @@ def companies() -> list[dict]:
     return _load_yaml(PROFILE_DIR / "companies.yaml", {}).get("companies", [])
 
 
+def boards() -> list[dict]:
+    """Job boards that list many companies (agent/sources/boards.py): companies.yaml → boards."""
+    return _load_yaml(PROFILE_DIR / "companies.yaml", {}).get("boards", [])
+
+
 def master_text() -> str:
     """Concatenate every markdown/text file in profile/master, in filename order.
     PDFs/DOCX should be converted to .md first (see docs/01)."""

@@ -156,9 +156,9 @@ def add_from(files: list[tuple[str, str]], note: str, person: str = "") -> None:
     names = [n for n, _ in files]
     STATUS.clear(); STATUS.update(state="running", mode="add", reference=" · ".join(names + (["your note"] if note.strip() else [])),
                                   prompt=note, total=len(files) + 1, done=0, changes=[], current="")
-    snapshot(f"before adding from {', '.join(names) or 'your note'}")
+    ts = snapshot(f"before adding from {', '.join(names) or 'your note'}")
     pending = config.PROFILE_DIR / ".adding.json"   # survives a restart: the dashboard picks the job up again on start
-    pending.write_text(json.dumps({"files": files, "note": note, "person": person}, ensure_ascii=False), encoding="utf-8")
+    pending.write_text(json.dumps({"files": files, "note": note, "person": person, "snapshot": ts}, ensure_ascii=False), encoding="utf-8")
     from .prompts import STORYBOOK_ADD as task
     try:
         corpus = []
@@ -198,7 +198,10 @@ def resume_add() -> bool:
         d = json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         p.unlink(missing_ok=True); return False
-    restore_previous()   # back to the storybook as it was before the cut-off run, so nothing is added twice
+    newest = next((x.name for x in sorted(_vdir().iterdir(), reverse=True) if x.is_dir()), None)
+    if d.get("snapshot") and newest == d["snapshot"]:
+        restore_previous()   # back to the storybook as it was before the cut-off run, so nothing is added twice
+    # a later snapshot means you changed the storybook since: keep your change; the run skips what is already there
     return start_add_from([tuple(x) for x in d["files"]], d.get("note", ""), d.get("person", ""))
 
 

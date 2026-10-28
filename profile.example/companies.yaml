@@ -1,5 +1,12 @@
 # Watchlist. Verified 2026-10-13 that these board tokens respond.
 # ats: greenhouse | lever | ashby.  Add a company with `python -m agent.run probe <slug>`.
+# Job boards that list roles across many companies (agent/sources/boards.py). A role found there is kept in its
+# company's Greenhouse, Lever or Ashby version when one exists, so the form can be filled; otherwise you apply by hand.
+# LinkedIn is not read: discover there by hand only (docs/03-job-sources-and-apis.md, §6).
+boards:
+  - {board: builtin, site: builtinnyc.com, category: design-ux}
+  - {board: yc, role: design}
+
 companies:
   # design agencies / studios
   - {name: IDEO, ats: greenhouse, board_token: ideo, sector: design_agency}

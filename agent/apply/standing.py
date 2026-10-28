@@ -76,8 +76,27 @@ def _sponsor(l: str, s: dict) -> str | None:
     return either
 
 
+YESNO_Q = re.compile(r"^\s*(are|do|does|did|would|will|can|could|have|has|is|may)\b", re.I)   # asks for yes or no
+OPEN_Q = re.compile(r"^\s*(how (many|much|long|often)|what|which|when|where|why)\b", re.I)    # asks for a number, a date or words
+
+
+def fits(label: str, value: str) -> bool:
+    """A rule's answer fits the question's shape: a yes/no question never gets a link or an address, and a question
+    asking how many, what or when never gets a bare Yes or No ("How many days a week can you work from the office?")."""
+    v = str(value).strip()
+    if YESNO_Q.search(label or "") and re.search(r"^https?://|@|\.(com|io|org|net|design)\b", v, re.I):
+        return False
+    return not (OPEN_Q.search(label or "") and v.lower() in ("yes", "no"))
+
+
 def simple_answer(label: str) -> str | None:
-    """Plain questions answered from the standing answers, then preferences.yaml simple_answers."""
+    """Plain questions answered from the standing answers, then preferences.yaml simple_answers; only an answer that
+    fits the question's shape."""
+    v = _simple_answer(label)
+    return v if v is None or fits(label, v) else None
+
+
+def _simple_answer(label: str) -> str | None:
     s, l = _sa(), (label or "")
     if re.search(r"password", l, re.I) and not re.search(r"include (a |the |any )?password|password(s)? (if|when|where)", l, re.I):
         return None   # "Website Password" is not the website ("Website (include password if needed)" still is)
@@ -93,15 +112,18 @@ def simple_answer(label: str) -> str | None:
         (r"github", s.get("github")),
         (r"how did you (hear|find|learn)", s.get("how_heard") or "Company website"),
         (r"opt[- ]?in.*(whatsapp|sms|text message|marketing|newsletter)|(whatsapp|sms|text) (messages|updates)", "No"),   # marketing opt-ins: no
-        (r"^\s*(current )?location( \(city\))?\s*\*?\s*$|where are you (currently )?(located|based)|city of residence", s.get("city")),
+        (r"^\s*(current )?location( \(city\))?\s*\*?\s*$|where are you (currently )?(located|based)|city of residence|what is your (current )?location", s.get("city")),
         (r"(currently )?(based|located|live) in the (nyc|new york( city)?) (metro|area|metropolitan)",
          None if not s.get("city") else ("Yes" if re.search(r"new york|\bny\b|brooklyn|queens|bronx|jersey city|hoboken|newark|\bnj\b", s["city"], re.I) else "No")),
         (r"(expected )?graduation date|when (do|will) you graduate|currently enrolled.*graduat", s.get("grad_date")),
         (r"earliest (you could|you can|date you could|start)|when (can|could) you start|available to start|start date", s.get("earliest_start")),
         (r"(come|commute) (in)?to the office|in[- ]office|in an office|from (the|an|our) office|on-?site|in[- ]person|days (a|per) week|hybrid",
          None if not s.get("onsite") else ("No" if s["onsite"].startswith("Remote") else "Yes")),
+        # "authorized ... WITHOUT sponsorship" asks the opposite of "do you need sponsorship"
+        (r"without (the need for |needing |requiring |requirement of )?(an? )?(employer |visa |company )?(sponsorship|sponsor)",
+         {"Yes": "No", "No": "Yes"}.get(_sponsor(l, s) or "")),
         (r"\b(stem )?opt\b|\bcpt\b|\bf-?1\b", _sponsor(l, s)),   # OPT counts as needing support now
-        (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?(immigration|employment)|visa sponsorship|sponsorship",
+        (r"require (visa )?sponsorship|need sponsorship|sponsorship for (an )?(immigration|employment)|visa sponsorship|sponsorship|\bsponsor (you|your)\b",
          _sponsor(l, s)),
         (r"^\s*i agree\b|^\s*i acknowledge\b|consent to the processing|\bi consent to\b|(review and )?acknowledge .*(agreement|policy|notice|terms)",
          "Yes" if re.match(r"\s*(tick|i agree|yes)", s.get("consent", ""), re.I) else None),

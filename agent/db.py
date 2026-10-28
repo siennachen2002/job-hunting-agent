@@ -77,6 +77,19 @@ CREATE TABLE IF NOT EXISTS runs (
   summary TEXT
 );
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS verdicts (
+  job_id INTEGER PRIMARY KEY,
+  verdict TEXT NOT NULL,     -- good | nope: yours, on the job as it was scored
+  reason TEXT,               -- the main reason: a scoring dimension's name, 'Other', or 'prepared' (Prepare counts as Good)
+  at TEXT,
+  score REAL,                -- the score and score_json when you judged it, so a later rescore doesn't change what you judged
+  score_json TEXT,
+  prev_status TEXT           -- jobs.status before a Nope took it off To do
+);
+CREATE TABLE IF NOT EXISTS versions (   -- what a score depended on (agent/scoring.py · versions), first seen when
+  kind TEXT, hash TEXT, first_at TEXT, content TEXT,
+  PRIMARY KEY (kind, hash)
+);
 """
 
 

@@ -93,16 +93,30 @@ def classify(text: str) -> str:
     return "other"
 
 
+GENERIC_HOST = {"careers", "jobs", "job", "apply", "boards", "news", "app", "mail", "hire", "talent", "recruiting", "work", "join", "people"}
+
+
+def _site(host: str) -> str:
+    """careers.roblox.com → roblox: the part of a domain that names the company ('' for a generic one)."""
+    parts = [p for p in (host or "").lower().split(".") if p]
+    label = parts[-2] if len(parts) >= 2 else (parts[0] if parts else "")
+    return "" if label in GENERIC_HOST or len(label) < 3 else label
+
+
 def match(msg: dict, apps: list[dict]) -> dict | None:
     """The application a message is about: company name in sender/subject/body, else the posting's domain."""
-    head = _norm(" ".join([msg.get("sender", ""), msg.get("subject", "")]))
-    from_ats = any(d in (msg.get("sender") or "").lower() for d in ATS_SENDERS)
+    sender, subject = msg.get("sender") or "", msg.get("subject") or ""
+    head = f" {_norm(sender + ' ' + subject)} "
+    sender_site = _site((re.search(r"@([\w.-]+)", sender) or [None, ""])[1])
+    from_ats = any(d in sender.lower() for d in ATS_SENDERS)
     # the company must be in the sender or subject; the body only counts when the mail comes from an application system
-    hay = _norm(" ".join([msg.get("sender", ""), msg.get("subject", ""), msg.get("body", "")[:4000] if from_ats else ""]))
+    hay = _norm(" ".join([sender, subject, (msg.get("body") or "")[:4000] if from_ats else ""]))
     best = None
     for a in apps:
         n = _norm(a["company"])
-        score = (3 if n and f" {n} " in f" {hay} " else 0) + (2 if any(d.split(".")[0] in head for d in a["domains"]) else 0)
+        sites = {_site(d) for d in a["domains"]} - {""}
+        site_hit = bool(sites) and (sender_site in sites or any(f" {x} " in head for x in sites))
+        score = (3 if n and f" {n} " in f" {hay} " else 0) + (2 if site_hit else 0)
         score += 1 if _norm(a["title"]) and _norm(a["title"])[:30] in hay else 0
         if score and (best is None or score > best[0] or (score == best[0] and (a["sent_at"] or "") > (best[1]["sent_at"] or ""))):
             best = (score, a)

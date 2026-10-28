@@ -164,7 +164,7 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 ### Find postings
 
-**Runs:** Code, no model · `agent/sources/ · agent/run.py · discover, prefilter, find_jobs`
+**Runs:** Code, no model · `agent/sources/ (ats.py, boards.py, hn_hiring.py) · agent/run.py · discover, prefilter, find_jobs`
 
 **Input**
 
@@ -173,7 +173,8 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 | Click | Find matching jobs (1-5), offered in the chat once the storybook is ready | outside |
 | API | Greenhouse · Lever · Ashby board APIs, read in parallel | outside |
 | Web page | Hacker News, Who is hiring | outside |
-| YAML | profile/companies.yaml (watchlist) | outside |
+| Web page | Built In NYC and Y Combinator's Work at a Startup: each role kept in its company's Greenhouse, Lever or Ashby version when there is one | outside |
+| YAML | profile/companies.yaml (watchlist, and the boards) | outside |
 | YAML | preferences.yaml (avoid_keywords) | outside |
 
 **Output**
@@ -186,7 +187,7 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 
 ### Rank the fit
 
-**Runs:** The draft model (or the model) · `agent/jev.py (Jev, TypeSafe) · agent/llm.py · score_jobs_claude_code` · output schema: `JobScore`
+**Runs:** The draft model (or the model) · `agent/jev.py (Jev, TypeSafe) · agent/llm.py · score_jobs_claude_code → agent/scoring.py · finalize` · output schema: `JobScore`
 
 **Input**
 
@@ -195,22 +196,48 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 | SQLite | jobs (new) | **Find postings** |
 | API | Jev P(fit) per posting, when TYPESAFE_API_KEY is set | outside |
 | YAML | profile/roles.yaml | outside |
+| YAML | preferences.yaml → scoring: the dimensions, their weights and rubrics | outside |
 | Markdown | storybook | **The storybook** |
 
 **Output**
 
 | Type | What | To |
 |---|---|---|
-| JSON | JobScore {score, role_family, sector, fit_reasons, gaps, hard_blockers, action} | **Write the résumé** |
+| JSON | JobScore {role_family, sector, dims [key, score 1-5 or 0, reason, evidence], guard, gaps, hard_blockers} | **Write the résumé**, **Good or Nope** |
+| SQLite | jobs.score: the total, computed in code; score_json adds the model and the versions it was scored with | **Write the résumé**, **Good or Nope** |
 | SQLite | jobs.status = queued \| skipped | **Write the résumé** |
 
 **Prompt** (`prompts.RANK`)
 
 ```text
-Judge whether {first_name} is a credible candidate for this posting, as a strict recruiter in that field would. Map it to one role family below; respect that family's seniority guard (cap at 50, action 'maybe'). Work authorisation is settled, so it is never a blocker. Role families: {roles}
+Judge whether {first_name} is a credible candidate for this posting, as a strict recruiter in that field would. Map it to one role family below and say whether that family's seniority guard applies. Score every dimension below by its rubric, each with one sentence and words copied exactly from the posting as evidence; 0 when the posting says nothing about it. Work authorisation is settled, so it is never a blocker.
+
+Dimensions:
+{dimensions}
+
+Role families: {roles}
 ```
 
-> Jev rates every posting when its key is saved (Setup → API keys); without it Claude Code rates them, 8 per call, never an API key. Under 50 is never applied to.
+> Jev rates every posting when its key is saved (Setup → API keys); without it Claude Code rates them, 8 per call, never an API key. The model scores each dimension and quotes the posting; code turns a quote not found in the posting into unknown, adds the dimensions up by weight (unknown counts as 3 of 5), and caps a seniority-guarded family at 50. Under 50 is never applied to.
+
+### Good or Nope
+
+**Runs:** You · `dashboard → To do · agent/scoring.py · set_verdict`
+
+**Input**
+
+| Type | What | From |
+|---|---|---|
+| JSON | the dimension scores, reasons and quotes | **Rank the fit** |
+
+**Output**
+
+| Type | What | To |
+|---|---|---|
+| SQLite | verdicts: Good or Nope, the main reason, and the score as it was then | outside |
+| Click | Nope takes the job off To do; Prepare counts as Good | **Write the résumé** |
+
+> Your verdicts are what scoring is measured against: a change to the dimensions, weights, rubrics or prompt shows up as a new version on every score.
 
 ## 03 · The résumé and the form
 

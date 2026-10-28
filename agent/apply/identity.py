@@ -19,8 +19,11 @@ def identity_answer(label: str) -> str | None:
     first, last = sa.get("legal_first") or legal.get("first", ""), sa.get("legal_last") or legal.get("last", "")
     preferred = sa.get("preferred_name") or p.get("preferred_name") or first
     l = (label or "").lower()
-    if not re.search(r"name|e-?mail|phone|mobile", l) or re.search(r"company|school|employer|reference|manager|\breferr", l):
+    if not re.search(r"name|e-?mail|phone|mobile", l) or re.search(r"company|school|universit|college|institution|employer|"
+                                                                    r"reference|manager|\breferr|pronounc|spell", l):
         return None
+    if re.match(r"\s*(would|do|does|did|are|can|could|have|has|will|is|may|how)\b", l):
+        return None   # a question about emails or names ("Would you like to receive emails…?"), not the field itself
     if "name" in l:
         if PREFERRED.search(l):
             return preferred
