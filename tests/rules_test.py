@@ -63,4 +63,12 @@ check("company domain", (replies.match({"sender": "Roblox <no-reply@roblox.com>"
 check("company named", (replies.match({"sender": "no-reply@us.greenhouse-mail.io", "subject": "Thank you for applying to Figma",
                                        "body": "Thanks for applying to Figma"}, apps) or {}).get("id"), 2)
 
+# internships for students still in school after them, for someone graduating 06/2027
+from agent.run import needs_returning  # noqa: E402
+for text, drop in [("A graduation date in Fall 2027 or Spring 2028", True), ("Must be planning on graduating in 2028", True),
+                   ("Must be graduating in December 2027 or Spring 2028", True), ("You must be returning to school after the internship", True),
+                   ("Must be planning on graduating in 2027", False), ("Must graduate before Summer 2028", False),
+                   ("plans to graduate in December 2026 or 2027", False), ("Currently pursuing a degree in design", False)]:
+    check(f"returning: {text}", needs_returning(text, "06/2027") is not None, drop)
+
 print("rules: all checks pass")

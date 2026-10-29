@@ -66,9 +66,39 @@ PREFILTER = {   # the defaults; preferences.yaml → prefilter overrides any of 
     "home": r"\b(united states|usa|us\b|new york|nyc|ny\b|new jersey|brooklyn|san francisco|sf\b|seattle|los angeles|boston|"
             r"chicago|austin|remote|north america|americas)",
     "elsewhere": 0.35,
-    "internships": None,   # {want, other, raise}: which internship terms you want (preferences.yaml)
+    "internships": None,   # {want, other, raise, drop_returning}: which internships you want (preferences.yaml)
 }
 INTERN = r"\bintern(ship)?s?\b|\bco-?op\b"   # not "internal", not "international"
+
+
+RETURNING = (r"return(ing)? to (school|campus|university|your (studies|degree|program))|returning (student|to school)|"
+             r"(at least )?(one|1|a) (semester|quarter|term) (of (school|study) )?(remaining|left) (after|following)|"
+             r"continu\w+ (your|their) (studies|education|degree) (after|following) the internship")
+SEASON = {"spring": 3, "summer": 6, "fall": 9, "autumn": 9, "winter": 12, "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5,
+          "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+
+
+def needs_returning(text: str, grad: str | None) -> str | None:
+    """Why an internship is for students still in school after it, given your graduation ("06/2027"); None when it isn't
+    (or can't tell). A graduation requirement whose earliest date is past the summer you graduate means you'd have to
+    return to school; "before", "by" or "no later than" only caps it, so it never drops."""
+    import re as _re
+    m = _re.search(RETURNING, text, _re.I)
+    if m:
+        return m.group(0)
+    g = _re.match(r"\s*(\d{1,2})\s*/\s*(\d{4})", grad or "")
+    if not g:
+        return None
+    mine = int(g.group(2)) * 12 + int(g.group(1))
+    for sent in _re.findall(r"[^.\n]*graduat[^.\n]*", text, _re.I):
+        if _re.search(r"\b(before|by|no later than|prior to|high school)\b", sent, _re.I):
+            continue
+        dates = [int(y) * 12 + SEASON.get((w or "jan")[:3].lower() if (w or "").lower()[:3] in SEASON else (w or "").lower(), 1)
+                 for w, y in _re.findall(r"\b(spring|summer|fall|autumn|winter|jan\w*|feb\w*|mar\w*|apr\w*|may|jun\w*|jul\w*|aug\w*|"
+                                         r"sep\w*|oct\w*|nov\w*|dec\w*)?\.?\s*(?:of\s*)?(20[2-3]\d)\b", sent, _re.I)]
+        if dates and min(dates) > mine + 2:   # every allowed date is after the summer you graduate
+            return sent.strip()[:120]
+    return None
 
 
 def _money(v: float) -> str:
@@ -87,6 +117,12 @@ def _pay_or_term(row, rules, floor) -> str | None:
     t = (row["title"] or "").lower()
     if it and _re.search(INTERN, t) and _re.search(it["other"], t) and not _re.search(it["want"], t):
         return f"prefilter: an internship for {_re.search(it['other'], t).group(0)}, not the term you want"
+    if it and it.get("drop_returning") and _re.search(INTERN, t):
+        from .scoring import plain
+        from .setup_answers import load
+        why = needs_returning(plain(row["description"]), load().get("grad_date"))
+        if why:
+            return f"prefilter: an internship for students still in school after it (\"{why}\")"
     return None
 
 
