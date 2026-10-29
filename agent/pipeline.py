@@ -71,7 +71,7 @@ NODES = [
                 ("Web page", "Hacker News, Who is hiring", ""),
                 ("Web page", "Built In NYC and Y Combinator's Work at a Startup: each role kept in its company's Greenhouse, Lever or Ashby version when there is one", ""),
                 ("YAML", "profile/companies.yaml (watchlist, and the boards)", ""),
-                ("YAML", "preferences.yaml (avoid_keywords)", "")],
+                ("YAML", "preferences.yaml: avoid_keywords, salary_floor (pay read as dollars a year: agent/pay.py), prefilter (titles, places, internship terms)", "")],
          gives=[("SQLite", "jobs: company, title, location, url, description (talent pools skipped)", "rank")],
          note="You start it. The best-ranked jobs are then prepared one by one with no more clicks; each comes back as a Review button."),
     dict(id="rank", step="02", name="Rank the fit", lane="agent", runs="draft", prompt="RANK", schema="JobScore",

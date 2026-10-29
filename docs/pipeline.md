@@ -175,7 +175,7 @@ Turn the raw material into storybook entries. Every line must be traceable to a 
 | Web page | Hacker News, Who is hiring | outside |
 | Web page | Built In NYC and Y Combinator's Work at a Startup: each role kept in its company's Greenhouse, Lever or Ashby version when there is one | outside |
 | YAML | profile/companies.yaml (watchlist, and the boards) | outside |
-| YAML | preferences.yaml (avoid_keywords) | outside |
+| YAML | preferences.yaml: avoid_keywords, salary_floor (pay read as dollars a year: agent/pay.py), prefilter (titles, places, internship terms) | outside |
 
 **Output**
 

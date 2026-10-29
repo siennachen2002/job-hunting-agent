@@ -66,7 +66,28 @@ PREFILTER = {   # the defaults; preferences.yaml → prefilter overrides any of 
     "home": r"\b(united states|usa|us\b|new york|nyc|ny\b|new jersey|brooklyn|san francisco|sf\b|seattle|los angeles|boston|"
             r"chicago|austin|remote|north america|americas)",
     "elsewhere": 0.35,
+    "internships": None,   # {want, other, raise}: which internship terms you want (preferences.yaml)
 }
+INTERN = r"\bintern(ship)?s?\b|\bco-?op\b"   # not "internal", not "international"
+
+
+def _money(v: float) -> str:
+    return f"${v / 1000:.0f}K"
+
+
+def _pay_or_term(row, rules, floor) -> str | None:
+    """Why a posting fails your pay floor or internship term, in words; None when it doesn't."""
+    import re as _re
+    from .pay import yearly_range
+    if floor:
+        r = yearly_range(dict(row))
+        if r and r[1] < floor:
+            return f"prefilter: pay tops out at {_money(r[1])} a year, under your {_money(floor)} floor"
+    it = rules.get("internships")
+    t = (row["title"] or "").lower()
+    if it and _re.search(INTERN, t) and _re.search(it["other"], t) and not _re.search(it["want"], t):
+        return f"prefilter: an internship for {_re.search(it['other'], t).group(0)}, not the term you want"
+    return None
 
 
 def prefilter_rules() -> dict:
@@ -85,12 +106,19 @@ def prefilter(con) -> tuple[int, int]:
     avoid_k = [a.lower() for a in prefs.get("avoid_keywords", [])]
     avoid_c = [a.lower() for a in prefs.get("avoid_companies", [])]
     title_words = {w for t in titles for w in t.replace("(", " ").replace(")", " ").replace(",", " ").split() if len(w) > 3 and w not in {"only", "focused"}}
+    from .pay import floor as pay_floor
+    floor = pay_floor()
     kept = dropped = 0
+    for row in con.execute("SELECT * FROM jobs WHERE status='queued' AND id NOT IN (SELECT job_id FROM verdicts)").fetchall():
+        why = _pay_or_term(row, rules, floor)   # a floor or term set after a job was queued applies to it too
+        if why:
+            con.execute("UPDATE jobs SET status='skipped', score_reason=? WHERE id=?", (why, row["id"])); dropped += 1
     for row in db.jobs_by_status(con, "new", 100000):
         t = (row["title"] or "").lower(); d = (row["description"] or "").lower(); c = (row["company"] or "").lower()
         why = (next((f"prefilter: avoided keyword '{a}'" for a in avoid_k if a in t or a in d), None)
                or next((f"prefilter: avoided company '{a}'" for a in avoid_c if a in c), None)
-               or next((f"prefilter: title matches '{p}' (drop_titles)" for p in rules["drop_titles"] if _re.search(p, t)), None))
+               or next((f"prefilter: title matches '{p}' (drop_titles)" for p in rules["drop_titles"] if _re.search(p, t)), None)
+               or _pay_or_term(row, rules, floor))
         hit_title = any(w in t for w in title_words)
         hit_kw = sum(1 for k in kws if k in d) >= 2
         if not why and not (hit_title or hit_kw):
@@ -104,6 +132,9 @@ def prefilter(con) -> tuple[int, int]:
         kw -= max((by for p, by in rules["lower_titles"].items() if _re.search(p, t)), default=0)   # the largest that applies
         if not exact and _re.search(rules["off_role"]["pattern"], t): kw -= rules["off_role"]["by"]
         kw += sum(by for p, by in rules["raise_titles"].items() if _re.search(p, t))
+        it = rules.get("internships")
+        if it and _re.search(INTERN, t) and (_re.search(it["want"], t) or _re.search(it["want"], d)):
+            kw += it.get("raise", 0.25)   # an internship in the term you want
         loc = (row["location"] or "").lower()
         if loc and not (row["remote"] or _re.search(rules["home"], loc)): kw -= rules["elsewhere"]
         kw = max(0.0, min(1.0, kw))
